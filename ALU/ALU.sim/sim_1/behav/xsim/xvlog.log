@@ -1,0 +1,4 @@
+INFO: [VRFC 10-2263] Analyzing Verilog file "C:/Users/User/Desktop/cpu/ALU/ALU_Template.v" into library xil_defaultlib
+INFO: [VRFC 10-311] analyzing module ALU
+INFO: [VRFC 10-2263] Analyzing Verilog file "C:/Users/User/Desktop/cpu/ALU/ALU_TB.v" into library xil_defaultlib
+INFO: [VRFC 10-311] analyzing module ALU_TB
