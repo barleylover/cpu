@@ -34,21 +34,50 @@ module vending_machine #(
 
 
 	// TODO: You may add your own reg variables (state, total, ...)
-
+	reg [1:0]state, state_nxt;
+	parameter zero=0, first=1, second=2, third=3; 
+	reg [TOT_BITS-1:0] total, current_total_nxt;
 	
+	reg [NUM_ITEMS-1:0] o_available_item, o_output_item;
+	reg [NUM_COINS-1:0] o_return_coin;
+
 	// Sequential circuit to reset or update the states
 	always @(posedge clk) begin
 		if (!reset_n) begin
 			// TODO: reset all states.
+			state <= 2'b0;
+			total_o <= TOT_BITS'b0;
 		end
 		else begin
 			// TODO: update all states.
+			state <= state_nxt;
+			total_o <= current_total_nxt;
 		end
 	end
 	
 	// Combinational circuit for the next states
 	always @(*) begin
+		case (state)
+			zero: begin
+				if (input_coin_i == 3'b0) begin
+					state_nxt = zero;
+				end else begin
+					state_nxt = first;
+				end
+			end
+			first: begin
+				if (input_coin_i == 3'b0) begin
+					state_nxt = first;
+				end else begin
+					state_nxt = 
+				end
+			end
+			second: begin
+			end
+		endcase
+	end
 		// TODO: current_total_nxt
+		
 																	   
 		// TODO: num_items_nxt			
 		
@@ -59,10 +88,11 @@ module vending_machine #(
 	// Combinational circuit for the outputs
 	always @(*) begin
 		// TODO: o_available_item
-
+		assign available_item_o = o_available_item;
 		// TODO: o_output_item
-
+		assign output_item_o = o_output_item;
 		// TODO: o_return_coin
+		assign return_coin_o = o_return_coin;
 
 	end
 	
