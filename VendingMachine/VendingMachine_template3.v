@@ -35,15 +35,17 @@ module vending_machine #(
 
 
 	// TODO: You may add your own reg variables (state, total, ...)
-	reg state, state_nxt;
+	reg[1:0] state, state_nxt;
 	reg [TOT_BITS-1:0] total;
-	localparam zero=0, first=1; 
+	localparam zero=0, first=1, second=2; 
 	reg [TOT_BITS-1:0] current_total_nxt;
 	
 	reg [NUM_ITEMS-1:0] o_available_item, o_output_item;
 	reg [NUM_COINS-1:0] o_return_coin;
-    reg [NUM_ITEMS*ITEM_BITS-1:0] items, num_items_nxt;
-	integer i;
+	reg [NUM_COINS*COIN_BITS:0] coins;
+	reg [NUM_COINS*COIN_BITS:0] num_coins_nxt;
+  reg [NUM_ITEMS*ITEM_BITS-1:0] items, num_items_nxt;
+	integer i, flag, total_reg, cnt_coin;
 
 	// Sequential circuit to reset or update the states
 	always @(posedge clk) begin
@@ -51,44 +53,48 @@ module vending_machine #(
 			// TODO: reset all states.
 			state <= 0;
 			total <= 0;
-            items <= num_items_i;
+      items <= num_items_i;
+			coins <= 0;
 		end
 		else begin
 			// TODO: update all states.
 			state <= state_nxt;
 			total <= current_total_nxt;
-            items <= num_items_nxt;
-
+      items <= num_items_nxt;
+			coins <= num_coins_nxt;
 		end
 	end
 	
 	// Combinational circuit for the next states
 	always @(*) begin
 		//초기화
-        num_items_nxt = items;
+  	num_items_nxt = items;
+		num_coins_nxt = coins;
 		state_nxt = state;
 		current_total_nxt = total;
 		o_output_item = 0;
 		o_return_coin = 0;
+		flag = 0;
 		for (i=0; i<NUM_ITEMS; i=i+1) begin
-			o_available_item[i] = (total >= kkItemPrice[i] && num_items_nxt[i*ITEM_BITS+ITEM_BITS-1:i*ITEM_BITS] > 0);
+			o_available_item[i] = (total >= kkItemPrice[i] && num_items_nxt[ITEM_BITS*i +: ITEM_BITS] > 0);
 		end
 
 		case (state)
 			zero: begin // 동전 투입, 아이템 선택, 반환 시작
 				//동전 투입 -> 동전 총합 업데이트
-                if (input_coin_i != 0) begin
+        if (input_coin_i != 0) begin
 					for (i=0; i<NUM_COINS; i=i+1) begin
 						current_total_nxt = current_total_nxt + kkCoinValue[i]*input_coin_i[i];
+						num_coins_nxt[i*COIN_BITS +: COIN_BITS] = num_coins_nxt[i*COIN_BITS +: COIN_BITS] + input_coin_i[i];
 					end
 				end
 				//아이템 선택 -> item 배출
 				else if (select_item_i !=0) begin
 					for (i=0; i<NUM_ITEMS; i=i+1) begin
-						if (select_item_i[i] && (current_total_nxt >= kkItemPrice[i]) && (num_items_nxt[i*ITEM_BITS+ITEM_BITS-1:i*ITEM_BITS] > 0)) begin
+						if (select_item_i[i] && (current_total_nxt >= kkItemPrice[i]) && (num_items_nxt[i*ITEM_BITS +: ITEM_BITS] > 0)) begin
 							o_output_item[i]=1;
 							current_total_nxt = current_total_nxt - kkItemPrice[i];
-                            num_items_nxt[i*ITEM_BITS+ITEM_BITS-1:i*ITEM_BITS] = num_items_nxt[i*ITEM_BITS+ITEM_BITS-1:i*ITEM_BITS] - 1;
+              num_items_nxt[i*ITEM_BITS +: ITEM_BITS] = num_items_nxt[i*ITEM_BITS +: ITEM_BITS] - 1;
 						end
 					end
 				end
@@ -97,14 +103,38 @@ module vending_machine #(
 					state_nxt = first;
 				end
 			end
-			first: begin // 반환
+			first: begin // 반환 가능 여부 계산
+				total_reg=current_total_nxt;
 				for (i=NUM_COINS-1; i>=0; i=i-1) begin
-					if (current_total_nxt >= kkCoinValue[i]) begin
-						o_return_coin[i] = 1;
-						current_total_nxt = current_total_nxt - kkCoinValue[i];
+					if (total_reg >= kkCoinValue[i]) begin
+						cnt_coin = total_reg/kkCoinValue[i];
+						if (cnt_coin <= num_coins_nxt[i*COIN_BITS +: COIN_BITS]) begin
+							total_reg = total_reg - cnt_coin*kkCoinValue[i];
+						end
+						else begin
+							total_reg = total_reg - num_coins_nxt[i*COIN_BITS +: COIN_BITS]*kkCoinValue[i];
+						end
 					end
 				end
 
+				if (total_reg==0) begin
+					state_nxt = second;
+				end
+				else begin
+					state_nxt = zero;
+				end
+
+			end
+			second: begin // 반환
+				for (i=NUM_COINS-1; i>=0; i=i-1) begin
+					if (flag != 1 && current_total_nxt >= kkCoinValue[i] && num_coins_nxt[i*COIN_BITS +: COIN_BITS] > 0) begin
+						o_return_coin[i] = 1;
+						current_total_nxt = current_total_nxt - kkCoinValue[i];
+						num_coins_nxt[i*COIN_BITS +: COIN_BITS] = num_coins_nxt[i*COIN_BITS +: COIN_BITS]-1;
+						flag = 1;
+					end
+				end
+				
 				if(current_total_nxt==0) begin
 					state_nxt = zero;
 				end			
