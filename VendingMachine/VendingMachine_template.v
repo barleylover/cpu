@@ -34,50 +34,81 @@ module vending_machine #(
 
 
 	// TODO: You may add your own reg variables (state, total, ...)
-	reg [1:0]state, state_nxt;
-	parameter zero=0, first=1, second=2, third=3; 
-	reg [TOT_BITS-1:0] total, current_total_nxt;
+	reg state, state_nxt;
+	reg [TOT_BITS-1:0] total;
+	localparam zero=0, first=1; 
+	reg [TOT_BITS-1:0] current_total_nxt;
 	
 	reg [NUM_ITEMS-1:0] o_available_item, o_output_item;
 	reg [NUM_COINS-1:0] o_return_coin;
+
+	integer i;
 
 	// Sequential circuit to reset or update the states
 	always @(posedge clk) begin
 		if (!reset_n) begin
 			// TODO: reset all states.
-			state <= 2'b0;
-			total_o <= TOT_BITS'b0;
+			state <= 0;
+			total <= 0;
 		end
 		else begin
 			// TODO: update all states.
 			state <= state_nxt;
-			total_o <= current_total_nxt;
+			total <= current_total_nxt;
 		end
 	end
 	
 	// Combinational circuit for the next states
 	always @(*) begin
+		//초기화
+		state_nxt = state;
+		current_total_nxt = total;
+		o_output_item = 0;
+		o_return_coin = 0;
+		for (i=0; i<NUM_ITEMS; i=i+1) begin
+			o_available_item[i] = (total >= kkItemPrice[i]);
+		end
+
 		case (state)
-			zero: begin
-				if (input_coin_i == 3'b0) begin
+			zero: begin // 동전 투입, 아이템 선택, 반환 시작
+				//동전 투입 -> 동전 총합 업데이트
+				if (input_coin_i != 0) begin
+					for (i=0; i<NUM_COINS; i=i+1) begin
+						current_total_nxt = current_total_nxt + kkCoinValue[i]*input_coin_i[i];
+					end
+				end
+				//아이템 선택 -> item 배출
+				else if (select_item_i !=0) begin
+					for (i=0; i<NUM_ITEMS; i=i+1) begin
+						if (select_item_i[i] && (current_total_nxt >= current_total_nxt - kkItemPrice[i])) begin
+							o_output_item[i]=1;
+							current_total_nxt = current_total_nxt - kkItemPrice[i];
+						end
+					end
+				end
+				//반환 요구 -> first로
+				else if (trigger_return_i) begin
+					state_nxt = first;
+				end
+			end
+			first: begin // 반환
+				for (i=NUM_COINS-1; i>=0; i=i-1) begin
+					if (current_total_nxt >= kkCoinValue[i]) begin
+						o_return_coin[i] = 1;
+						current_total_nxt = current_total_nxt - kkCoinValue[i];
+					end
+				end
+
+				if(current_total_nxt==0) begin
 					state_nxt = zero;
-				end else begin
-					state_nxt = first;
-				end
+				end			
+				
 			end
-			first: begin
-				if (input_coin_i == 3'b0) begin
-					state_nxt = first;
-				end else begin
-					state_nxt = 
-				end
-			end
-			second: begin
+			default: begin
+				state_nxt = zero;
 			end
 		endcase
-	end
 		// TODO: current_total_nxt
-		
 																	   
 		// TODO: num_items_nxt			
 		
@@ -86,14 +117,12 @@ module vending_machine #(
 	end
 	
 	// Combinational circuit for the outputs
-	always @(*) begin
 		// TODO: o_available_item
-		assign available_item_o = o_available_item;
-		// TODO: o_output_item
-		assign output_item_o = o_output_item;
-		// TODO: o_return_coin
-		assign return_coin_o = o_return_coin;
-
-	end
+	assign available_item_o = o_available_item;
+	// TODO: o_output_item
+	assign output_item_o = o_output_item;
+	// TODO: o_return_coin
+	assign return_coin_o = o_return_coin;
+	assign total_o = total;
 	
 endmodule
