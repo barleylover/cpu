@@ -13,7 +13,8 @@ module vending_machine #(
 	input   wire    [NUM_COINS-1:0]     input_coin_i,       // coin is inserted.
 	input   wire    [NUM_ITEMS-1:0]     select_item_i,      // item is selected.
 	input   wire                        trigger_return_i,   // change-return is triggered 
-		
+	input   wire    [NUM_ITEMS*ITEM_BITS-1:0]     num_items_i,
+
 	output  wire    [NUM_ITEMS-1:0]     available_item_o,   // Sign of the item availability
 	output  wire    [NUM_ITEMS-1:0]     output_item_o,      // Sign of the item withdrawal
 	output  wire    [NUM_COINS-1:0]     return_coin_o,      // Sign of the coin return
@@ -41,7 +42,7 @@ module vending_machine #(
 	
 	reg [NUM_ITEMS-1:0] o_available_item, o_output_item;
 	reg [NUM_COINS-1:0] o_return_coin;
-
+    reg [NUM_ITEMS*ITEM_BITS-1:0] items, num_items_nxt;
 	integer i;
 
 	// Sequential circuit to reset or update the states
@@ -50,29 +51,33 @@ module vending_machine #(
 			// TODO: reset all states.
 			state <= 0;
 			total <= 0;
+            items <= num_items_i;
 		end
 		else begin
 			// TODO: update all states.
 			state <= state_nxt;
 			total <= current_total_nxt;
+            items <= num_items_nxt;
+
 		end
 	end
 	
 	// Combinational circuit for the next states
 	always @(*) begin
 		//초기화
+        num_items_nxt = items;
 		state_nxt = state;
 		current_total_nxt = total;
 		o_output_item = 0;
 		o_return_coin = 0;
 		for (i=0; i<NUM_ITEMS; i=i+1) begin
-			o_available_item[i] = (total >= kkItemPrice[i]);
+			o_available_item[i] = (total >= kkItemPrice[i] && num_items_nxt[i*ITEM_BITS+ITEM_BITS-1:i*ITEM_BITS] > 0);
 		end
 
 		case (state)
 			zero: begin // 동전 투입, 아이템 선택, 반환 시작
 				//동전 투입 -> 동전 총합 업데이트
-				if (input_coin_i != 0) begin
+                if (input_coin_i != 0) begin
 					for (i=0; i<NUM_COINS; i=i+1) begin
 						current_total_nxt = current_total_nxt + kkCoinValue[i]*input_coin_i[i];
 					end
@@ -80,9 +85,10 @@ module vending_machine #(
 				//아이템 선택 -> item 배출
 				else if (select_item_i !=0) begin
 					for (i=0; i<NUM_ITEMS; i=i+1) begin
-						if (select_item_i[i] && (current_total_nxt >= kkItemPrice[i])) begin
+						if (select_item_i[i] && (current_total_nxt >= kkItemPrice[i]) && (num_items_nxt[i*ITEM_BITS+ITEM_BITS-1:i*ITEM_BITS] > 0)) begin
 							o_output_item[i]=1;
 							current_total_nxt = current_total_nxt - kkItemPrice[i];
+                            num_items_nxt[i*ITEM_BITS+ITEM_BITS-1:i*ITEM_BITS] = num_items_nxt[i*ITEM_BITS+ITEM_BITS-1:i*ITEM_BITS] - 1;
 						end
 					end
 				end

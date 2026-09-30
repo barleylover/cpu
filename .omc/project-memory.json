@@ -58,8 +58,14 @@
   "hotPaths": [
     {
       "path": "VendingMachine/VendingMachine_template.v",
-      "accessCount": 11,
-      "lastAccessed": 1790763236561,
+      "accessCount": 12,
+      "lastAccessed": 1790763314704,
+      "type": "file"
+    },
+    {
+      "path": "VendingMachine/VendingMachin_template2.v",
+      "accessCount": 4,
+      "lastAccessed": 1790766642238,
       "type": "file"
     }
   ],
