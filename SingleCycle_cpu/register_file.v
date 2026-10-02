@@ -17,7 +17,7 @@ module RegisterFile #(
 );
 
 // COPY AND PASTE YOUR REGISTER FILE CODE HERE!
-    reg [WORD_SIZE*(2^REG_BITS)-1:0] regist, reg_nxt;
+    reg [WORD_SIZE*(1<<REG_BITS)-1:0] regist, reg_nxt;
     reg [WORD_SIZE-1:0] rd_data1_o, rd_data2_o;
 
     always @(negedge clk) begin

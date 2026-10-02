@@ -49,7 +49,7 @@ end
 // SECTION: ALU instantiation
 reg  [15:0] alu_operand1,  // ALU: first operand (or operand A) 
             alu_operand2;  // ALU: second operand (or operand B)
-reg  [3 :0] alu_opcode;    // ALU: opcode (it may be different to the instruction's opcode)
+wire  [3 :0] alu_opcode;    // ALU: opcode (it may be different to the instruction's opcode)
 wire [15:0] alu_result;    // ALU: output result
 wire        alu_overflow;  // ALU: overflow or carry output
 
@@ -59,7 +59,7 @@ ALU alu_w16_m (
 );
 
 // SECTION: Register File instantiation
-reg                  rf_wr_enable;  // Register File: write enable
+wire                  rf_wr_enable;  // Register File: write enable
 reg  [REG_BITS -1:0] rf_rd_reg1;    // Register File: read register 1
 reg  [REG_BITS -1:0] rf_rd_reg2;    // Register File: read register 2
 reg  [REG_BITS -1:0] rf_wr_reg;     // Register File: write register
@@ -98,14 +98,13 @@ RegisterFile #(
 // SECTION: Instruction Decoder
 
 // ADD YOUR CODE HERE
-reg branch, alu_src;
+wire is_jump, alu_src, is_wwd;
 // SECTION: Control Unit instantiation
 
 ControlUnit ctrl_unit (
     // FILL OUT THE INTERFACE FOR THE CONTROL UNIT
-    .inst_addr(inst_addr),
-    .rf_rd_reg1(rf_rd_reg1), .rf_rd_reg2(rf_rd_reg2), .rf_wr_reg(rf_wr_reg),
-    .branch(branch), .RegWrite(rf_wr_enable), .alu_opcode(alu_opcode), .ALU_src(alu_src)
+    .rd_inst(rd_inst),
+    .is_jump(is_jump), .RegWrite(rf_wr_enable), .alu_opcode(alu_opcode), .ALU_src(alu_src), .is_wwd(is_wwd)
 
 );
 

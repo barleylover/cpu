@@ -36,19 +36,19 @@
  * ALU OPCODE
  ***************************************/
 
-`define ALU_OP_ADD   4'b0000;
-`define ALU_OP_SUB   4'b0001;
-`define ALU_OP_ID    4'b1000;
-`define ALU_OP_NAND  4'b1001; 
-`define ALU_OP_NOR   4'b1010;
-`define ALU_OP_XNOR  4'b1011;
-`define ALU_OP_NOT   4'b1100;
-`define ALU_OP_AND   4'b1101; 
-`define ALU_OP_OR    4'b1110;
-`define ALU_OP_XOR   4'b1111;
-`define ALU_OP_LRS   4'b0010;
-`define ALU_OP_ARS   4'b0100;
-`define ALU_OP_RR    4'b0110;
-`define ALU_OP_LLS   4'b0011;
-`define ALU_OP_ALS   4'b0101;
-`define ALU_OP_RL    4'b0111;
+`define ALU_OP_ADD   4'b0000
+`define ALU_OP_SUB   4'b0001
+`define ALU_OP_ID    4'b1000
+`define ALU_OP_NAND  4'b1001
+`define ALU_OP_NOR   4'b1010
+`define ALU_OP_XNOR  4'b1011
+`define ALU_OP_NOT   4'b1100
+`define ALU_OP_AND   4'b1101
+`define ALU_OP_OR    4'b1110
+`define ALU_OP_XOR   4'b1111
+`define ALU_OP_LRS   4'b0010
+`define ALU_OP_ARS   4'b0100
+`define ALU_OP_RR    4'b0110
+`define ALU_OP_LLS   4'b0011
+`define ALU_OP_ALS   4'b0101
+`define ALU_OP_RL    4'b0111
