@@ -49,7 +49,7 @@ end
 // SECTION: ALU instantiation
 reg  [15:0] alu_operand1,  // ALU: first operand (or operand A) 
             alu_operand2;  // ALU: second operand (or operand B)
-wire  [3 :0] alu_opcode;    // ALU: opcode (it may be different to the instruction's opcode)
+wire  [3:0] alu_opcode;    // ALU: opcode (it may be different to the instruction's opcode)
 wire [15:0] alu_result;    // ALU: output result
 wire        alu_overflow;  // ALU: overflow or carry output
 
@@ -59,7 +59,7 @@ ALU alu_w16_m (
 );
 
 // SECTION: Register File instantiation
-wire                  rf_wr_enable;  // Register File: write enable
+reg                  rf_wr_enable;  // Register File: write enable
 reg  [REG_BITS -1:0] rf_rd_reg1;    // Register File: read register 1
 reg  [REG_BITS -1:0] rf_rd_reg2;    // Register File: read register 2
 reg  [REG_BITS -1:0] rf_wr_reg;     // Register File: write register
@@ -98,14 +98,13 @@ RegisterFile #(
 // SECTION: Instruction Decoder
 
 // ADD YOUR CODE HERE
-wire is_jump, alu_src, is_wwd;
+wire isStore, isJump, isItype, is_wwd;
 // SECTION: Control Unit instantiation
 
 ControlUnit ctrl_unit (
     // FILL OUT THE INTERFACE FOR THE CONTROL UNIT
     .rd_inst(rd_inst),
-    .is_jump(is_jump), .RegWrite(rf_wr_enable), .alu_opcode(alu_opcode), .ALU_src(alu_src), .is_wwd(is_wwd)
-
+    .isJump(isJump), .isStore(isStore), .alu_opcode(alu_opcode), .isItype(isItype), .is_wwd(is_wwd)
 );
 
 
@@ -126,6 +125,52 @@ ControlUnit ctrl_unit (
 // SECTION: Finite State Machine
 
 // ADD YOUR CODE HERE
+localparam IF=0, ID=1, EX=2, WB=3, MEM=4;
+
+reg [3:0] state, state_nxt;
+reg [15:0] pc, pc_nxt;
+reg [15:0] msg;
+
+
+always @(posedge clk) begin
+  if (reset_n!) begin
+    state <= IF;
+    pc <= 0;
+  end
+  else begin
+    state <= state_nxt;
+    pc <= pc_nxt;
+  end
+end
+
+always @(*) begin
+  if (state==IF) begin
+    pc_nxt = pc+4;
+    immediate = pc[7:0];
+    state_nxt = ID;
+  end
+  
+  else if (state==ID) begin
+    rf_rd_reg1 = inst[25:21];
+    rf_rd_reg2 = inst[20:16];
+    if (isItype) begin wr_reg=inst[20:16]; end
+    else begin wr_reg=inst[15:11]; end
+    wr_data = alu_result;
+    rf_wr_enable = isStore;
+    state_nxt = EX;
+    if (is_wwd) begin
+      msg = rf_rd_data1;
+    end
+  end
+
+  else if (state == EX) begin
+    alu_operand1 = rf_rd_data1;
+    if (isItype) begin alu_operand2 = rf_rd_data2; end
+    else begin alu_operand2 = $signed(immediate) >>> 8; end
+    state_nxt = IF;
+  end
+
+end
 
 
 /*******************************************************
@@ -140,5 +185,8 @@ ControlUnit ctrl_unit (
 // SECTION: Datapath
 
 // ADD YOUR CODE HERE
+assign inst_addr = pc;
+assign ir_req = is_wwd;
+assign ir_msg = msg;
   
 endmodule

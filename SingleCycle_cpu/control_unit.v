@@ -4,26 +4,26 @@ module ControlUnit (
     // DEFINE THE INTERFACE OF THE CONTROL UNIT HERE
     input wire [15:0] rd_inst,
 
-    output wire is_jump,
-    output wire RegWrite,
+    output wire isJump,
+    output wire isStore,
     output wire [3:0] alu_opcode,
-    output wire ALU_src,
+    output wire isItype,
     output wire is_wwd
 );
 
 // ADD YOUR CODE HERE
   reg [3:0] opcode, alu_op;
   reg [5:0] funct;
-  reg wr_enable, jump, alu_src, wwd;
+  reg store, jump, itype, wwd;
 
     always @(*) begin
         opcode= rd_inst[15:12];
         funct = rd_inst[5:0];
         alu_op = `ALU_OP_ADD;
 
-        wr_enable=1;
+        store=1;
         jump=0;
-        alu_src=0;
+        itype=0;
         wwd = 0;
         case (opcode)
             `OPCODE_RTYPE: begin //R-type
@@ -34,7 +34,7 @@ module ControlUnit (
                     alu_op = `ALU_OP_SUB; end
                 `FUNC_WWD: begin
                     alu_op = `ALU_OP_ID;
-                    wr_enable = 0;
+                    store = 0;
                     wwd = 1; end
                 `FUNC_NOT, `FUNC_TCP: begin
                     alu_op = `ALU_OP_NOT; end
@@ -52,23 +52,23 @@ module ControlUnit (
             //I-type
             `OPCODE_ADI:  begin
                 alu_op = `ALU_OP_ADD;
-                alu_src = 1; end
+                itype = 1; end
             `OPCODE_ORI: begin
                 alu_op = `ALU_OP_OR;
-                alu_src = 1; end
+                itype = 1; end
             `OPCODE_LHI: begin
                 alu_op = `ALU_OP_ADD;
-                alu_src = 1; end
+                itype = 1; end
 
             //J-type
-            9,10: begin jump = 1; wr_enable = 0; end
+            9,10: begin jump = 1; store = 0; end
         endcase
     end
 
-    assign is_jump = jump;
-    assign RegWrite = wr_enable;
+    assign isJump = jump;
+    assign isStore = store;
     assign alu_opcode = alu_op;
-    assign ALU_src = alu_src;
+    assign isItype = itype;
     assign is_wwd = wwd;
     
 endmodule
