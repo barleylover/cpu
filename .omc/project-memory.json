@@ -1,0 +1,74 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1791263469075,
+  "projectRoot": "c:\\Users\\SSAFY\\Desktop\\cpu",
+  "techStack": {
+    "languages": [],
+    "frameworks": [],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [],
+    "gitBranches": {
+      "defaultBranch": "master",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "ALU": {
+      "path": "ALU",
+      "purpose": null,
+      "fileCount": 2,
+      "lastAccessed": 1791263469045,
+      "keyFiles": [
+        "ALU.xpr",
+        "ALU_Template.v"
+      ]
+    },
+    "SingleCycle_cpu": {
+      "path": "SingleCycle_cpu",
+      "purpose": null,
+      "fileCount": 5,
+      "lastAccessed": 1791263469045,
+      "keyFiles": [
+        "alu.v",
+        "control_unit.v",
+        "cpu.v",
+        "opcodes.v",
+        "register_file.v"
+      ]
+    },
+    "VendingMachine": {
+      "path": "VendingMachine",
+      "purpose": null,
+      "fileCount": 5,
+      "lastAccessed": 1791263469046,
+      "keyFiles": [
+        "VendingMachine.xpr",
+        "VendingMachine_template.v",
+        "VendingMachine_template2.v",
+        "VendingMachine_template3.v",
+        "VendingMachin_template2.v"
+      ]
+    }
+  },
+  "hotPaths": [],
+  "userDirectives": []
+}

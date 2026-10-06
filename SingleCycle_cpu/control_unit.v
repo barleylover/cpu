@@ -3,20 +3,26 @@
 module ControlUnit (
     // DEFINE THE INTERFACE OF THE CONTROL UNIT HERE
     input wire [15:0] rd_inst,
+    input wire reset_n,
 
-    output wire isJump,
-    output wire isStore,
     output wire [3:0] alu_opcode,
-    output wire isItype,
+    output wire isStore, isItype, isLHI, isJAL, isJPR, isBranch, isJump;
     output wire is_wwd
 );
 
 // ADD YOUR CODE HERE
   reg [3:0] opcode, alu_op;
   reg [5:0] funct;
-  reg store, jump, itype, wwd;
+  reg store, branch, jump, itype, wwd, lhi, jal, jpr;
 
     always @(*) begin
+        if (!reset_n) begin
+        jump = 0;
+        store = 0;
+        itype = 0;
+        wwd = 0;
+        end
+        else begin
         opcode= rd_inst[15:12];
         funct = rd_inst[5:0];
         alu_op = `ALU_OP_ADD;
@@ -58,16 +64,24 @@ module ControlUnit (
                 itype = 1; end
             `OPCODE_LHI: begin
                 alu_op = `ALU_OP_ADD;
-                itype = 1; end
+                itype = 1; 
+                lhi = 1;
+                end
 
             //J-type
-            9,10: begin jump = 1; store = 0; end
+            `OPCODE_JAL: begin jump = 1; store = 0; jal=1; end
+            `OPCODE_JPR: begin jump=1; store=0; jpr=1; end
         endcase
+        end
     end
 
-    assign isJump = jump;
-    assign isStore = store;
     assign alu_opcode = alu_op;
+    assign isJump = jump;
+    assign isBranch = branch;
+    assign isStore = store;
+    assign isLHI = lhi;
+    assign isJAL = jal;
+    assign isJPR = jpr;
     assign isItype = itype;
     assign is_wwd = wwd;
     
