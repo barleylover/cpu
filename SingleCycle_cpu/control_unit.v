@@ -5,84 +5,444 @@ module ControlUnit (
     input wire [15:0] rd_inst,
     input wire reset_n,
 
-    output wire [3:0] alu_opcode,
-    output wire isStore, isItype, isLHI, isJAL, isJPR, isBranch, isJump;
-    output wire is_wwd
+    output reg [3:0] ALUOp,
+    output reg RegDst,
+    output reg MemRead,
+    output reg MemtoReg,
+    output reg MemWrite,
+    output reg RegWrite,
+    output reg Branch,
+    output reg Jump,
+
+    output reg isStore,
+    output reg isItype,
+    output reg isLHI,
+    output reg isJAL,
+    output reg isJPR,
+    output reg is_wwd
 );
 
 // ADD YOUR CODE HERE
-  reg [3:0] opcode, alu_op;
-  reg [5:0] funct;
-  reg store, branch, jump, itype, wwd, lhi, jal, jpr;
+  reg [3:0] opcode;
+  reg [5:0] func;
 
-    always @(*) begin
-        if (!reset_n) begin
-        jump = 0;
-        store = 0;
-        itype = 0;
-        wwd = 0;
-        end
-        else begin
-        opcode= rd_inst[15:12];
-        funct = rd_inst[5:0];
-        alu_op = `ALU_OP_ADD;
+  always @(*) begin
+    if (!reset_n) begin
+        RegDst          = 1'b0;
+        Jump            = 1'b0;
+        Branch          = 1'b0;
+        MemRead         = 1'b0;
+        MemtoReg        = 1'b0;
+        ALUOp           = 5'b0;
+        MemWrite        = 1'b0;
+        ALUSrc          = 1'b0;
+        RegWrite        = 1'b0;
+        isLHI           = 1'b0;
+        isWWD           = 1'b0;
+        isJAL_JRL       = 1'b0;
+        isJPR_JRL       = 1'b0;
+        sign            = 1'b0;
+    end
+    else begin
+        //초기화
 
-        store=1;
-        jump=0;
-        itype=0;
-        wwd = 0;
-        case (opcode)
-            `OPCODE_RTYPE: begin //R-type
-                case(funct)
-                `FUNC_ADD: begin
-                    alu_op = `ALU_OP_ADD; end
-                `FUNC_SUB: begin
-                    alu_op = `ALU_OP_SUB; end
-                `FUNC_WWD: begin
-                    alu_op = `ALU_OP_ID;
-                    store = 0;
-                    wwd = 1; end
-                `FUNC_NOT, `FUNC_TCP: begin
-                    alu_op = `ALU_OP_NOT; end
-                `FUNC_AND: begin
-                    alu_op = `ALU_OP_AND; end
-                `FUNC_ORR: begin
-                    alu_op = `ALU_OP_OR; end
-                `FUNC_SHL: begin
-                    alu_op = `ALU_OP_LLS; end
-                `FUNC_SHR: begin
-                    alu_op = `ALU_OP_ARS; end
+        opcode = rd_inst[15:12];
+        func = rd_inst[5:0];
+
+        case(opcode)
+            // R-type
+            `OPCODE_RTYPE: begin
+                case(func)
+                    `FUNC_ADD: begin
+                        RegDst          = 1'b1;
+                        Jump            = 1'b0;
+                        Branch          = 1'b0;
+                        MemRead         = 1'b0;
+                        MemtoReg        = 1'b0;
+                        ALUOp           = `ALU_OP_ADD;
+                        MemWrite        = 1'b0;
+                        ALUSrc          = 1'b0;
+                        RegWrite        = 1'b1;
+                        isLHI           = 1'b0;
+                        isWWD           = 1'b0;
+                        isJAL_JRL       = 1'b0;
+                        isJPR_JRL       = 1'b0;
+                        sign            = 1'b0;
+                    end
+                    `FUNC_SUB: begin
+                        RegDst          = 1'b1;
+                        Jump            = 1'b0;
+                        Branch          = 1'b0;
+                        MemRead         = 1'b0;
+                        MemtoReg        = 1'b0;
+                        ALUOp           = `ALU_OP_SUB;
+                        MemWrite        = 1'b0;
+                        ALUSrc          = 1'b0;
+                        RegWrite        = 1'b1;
+                        isLHI           = 1'b0;
+                        isWWD           = 1'b0;
+                        isJAL_JRL       = 1'b0;
+                        isJPR_JRL       = 1'b0;
+                        sign            = 1'b0;
+                    end
+                    `FUNC_AND: begin
+                        RegDst          = 1'b1;
+                        Jump            = 1'b0;
+                        Branch          = 1'b0;
+                        MemRead         = 1'b0;
+                        MemtoReg        = 1'b0;
+                        ALUOp           = `ALU_OP_AND;
+                        MemWrite        = 1'b0;
+                        ALUSrc          = 1'b0;
+                        RegWrite        = 1'b1;
+                        isLHI           = 1'b0;
+                        isWWD           = 1'b0;
+                        isJAL_JRL       = 1'b0;
+                        isJPR_JRL       = 1'b0;
+                        sign            = 1'b0;
+                    end
+                    `FUNC_ORR: begin
+                        RegDst          = 1'b1;
+                        Jump            = 1'b0;
+                        Branch          = 1'b0;
+                        MemRead         = 1'b0;
+                        MemtoReg        = 1'b0;
+                        ALUOp           = `ALU_OP_OR;
+                        MemWrite        = 1'b0;
+                        ALUSrc          = 1'b0;
+                        RegWrite        = 1'b1;
+                        isLHI           = 1'b0;
+                        isWWD           = 1'b0;
+                        isJAL_JRL       = 1'b0;
+                        isJPR_JRL       = 1'b0;
+                        sign            = 1'b0;
+                    end
+                    `FUNC_NOT: begin
+                        RegDst          = 1'b1;
+                        Jump            = 1'b0;
+                        Branch          = 1'b0;
+                        MemRead         = 1'b0;
+                        MemtoReg        = 1'b0;
+                        ALUOp           = `ALU_OP_NOT;
+                        MemWrite        = 1'b0;
+                        ALUSrc          = 1'b0;
+                        RegWrite        = 1'b1;
+                        isLHI           = 1'b0;
+                        isWWD           = 1'b0;
+                        isJAL_JRL       = 1'b0;
+                        isJPR_JRL       = 1'b0;
+                        sign            = 1'b0;
+                    end
+                    `FUNC_TCP: begin
+                        RegDst          = 1'b1;
+                        Jump            = 1'b0;
+                        Branch          = 1'b0;
+                        MemRead         = 1'b0;
+                        MemtoReg        = 1'b0;
+                        ALUOp           = `ALU_OP_TCP;
+                        MemWrite        = 1'b0;
+                        ALUSrc          = 1'b0;
+                        RegWrite        = 1'b1;
+                        isLHI           = 1'b0;
+                        isWWD           = 1'b0;
+                        isJAL_JRL       = 1'b0;
+                        isJPR_JRL       = 1'b0;
+                        sign            = 1'b0;
+                    end
+                    `FUNC_SHL: begin
+                        RegDst          = 1'b1;
+                        Jump            = 1'b0;
+                        Branch          = 1'b0;
+                        MemRead         = 1'b0;
+                        MemtoReg        = 1'b0;
+                        ALUOp           = `ALU_OP_LLS;
+                        MemWrite        = 1'b0;
+                        ALUSrc          = 1'b0;
+                        RegWrite        = 1'b1;
+                        isLHI           = 1'b0;
+                        isWWD           = 1'b0;
+                        isJAL_JRL       = 1'b0;
+                        isJPR_JRL       = 1'b0;
+                        sign            = 1'b0;
+                    end
+                    `FUNC_SHR: begin
+                        RegDst          = 1'b1;
+                        Jump            = 1'b0;
+                        Branch          = 1'b0;
+                        MemRead         = 1'b0;
+                        MemtoReg        = 1'b0;
+                        ALUOp           = `ALU_OP_ARS;
+                        MemWrite        = 1'b0;
+                        ALUSrc          = 1'b0;
+                        RegWrite        = 1'b1;
+                        isLHI           = 1'b0;
+                        isWWD           = 1'b0;
+                        isJAL_JRL       = 1'b0;
+                        isJPR_JRL       = 1'b0;
+                        sign            = 1'b0;
+                    end
+                    `FUNC_WWD: begin
+                        RegDst          = 1'b1;
+                        Jump            = 1'b0;
+                        Branch          = 1'b0;
+                        MemRead         = 1'b0;
+                        MemtoReg        = 1'b0;
+                        ALUOp           = 5'b0;
+                        MemWrite        = 1'b0;
+                        ALUSrc          = 1'b0;
+                        RegWrite        = 1'b0;
+                        isLHI           = 1'b0;
+                        isWWD           = 1'b1;
+                        isJAL_JRL       = 1'b0;
+                        isJPR_JRL       = 1'b0;
+                        sign            = 1'b0;
+                    end
+                    `FUNC_JPR: begin
+                        RegDst          = 1'b1;
+                        Jump            = 1'b0;
+                        Branch          = 1'b0;
+                        MemRead         = 1'b0;
+                        MemtoReg        = 1'b0;
+                        ALUOp           = 5'b0;
+                        MemWrite        = 1'b0;
+                        ALUSrc          = 1'b0;
+                        RegWrite        = 1'b0;
+                        isLHI           = 1'b0;
+                        isWWD           = 1'b0;
+                        isJAL_JRL       = 1'b0;
+                        isJPR_JRL       = 1'b1;
+                        sign            = 1'b0;
+                    end
+                    `FUNC_JRL: begin
+                        RegDst          = 1'b1;
+                        Jump            = 1'b0;
+                        Branch          = 1'b0;
+                        MemRead         = 1'b0;
+                        MemtoReg        = 1'b0;
+                        ALUOp           = 5'b0;
+                        MemWrite        = 1'b0;
+                        ALUSrc          = 1'b0;
+                        RegWrite        = 1'b1;
+                        isLHI           = 1'b0;
+                        isWWD           = 1'b0;
+                        isJAL_JRL       = 1'b1;
+                        isJPR_JRL       = 1'b1;
+                        sign            = 1'b0;
+                    end
+                    default: begin
+                        RegDst          = 1'b0;
+                        Jump            = 1'b0;
+                        Branch          = 1'b0;
+                        MemRead         = 1'b0;
+                        MemtoReg        = 1'b0;
+                        ALUOp           = 5'b0;
+                        MemWrite        = 1'b0;
+                        ALUSrc          = 1'b0;
+                        RegWrite        = 1'b0;
+                        isLHI           = 1'b0;
+                        isWWD           = 1'b0;
+                        isJAL_JRL       = 1'b0;
+                        isJPR_JRL       = 1'b0;
+                        sign            = 1'b0;
+                    end
                 endcase
             end
-
-            //I-type
-            `OPCODE_ADI:  begin
-                alu_op = `ALU_OP_ADD;
-                itype = 1; end
+            // I-type
+            `OPCODE_ADI: begin
+                RegDst          = 1'b0;
+                Jump            = 1'b0;
+                Branch          = 1'b0;
+                MemRead         = 1'b0;
+                MemtoReg        = 1'b0;
+                ALUOp           = `ALU_OP_ADD;
+                MemWrite        = 1'b0;
+                ALUSrc          = 1'b1;
+                RegWrite        = 1'b1;
+                isLHI           = 1'b0;
+                isWWD           = 1'b0;
+                isJAL_JRL       = 1'b0;
+                isJPR_JRL       = 1'b0;
+                sign            = 1'b1;
+            end
             `OPCODE_ORI: begin
-                alu_op = `ALU_OP_OR;
-                itype = 1; end
+                RegDst          = 1'b0;
+                Jump            = 1'b0;
+                Branch          = 1'b0;
+                MemRead         = 1'b0;
+                MemtoReg        = 1'b0;
+                ALUOp           = `ALU_OP_OR;
+                MemWrite        = 1'b0;
+                ALUSrc          = 1'b1;
+                RegWrite        = 1'b1;
+                isLHI           = 1'b0;
+                isWWD           = 1'b0;
+                isJAL_JRL       = 1'b0;
+                isJPR_JRL       = 1'b0;
+                sign            = 1'b0;
+            end
             `OPCODE_LHI: begin
-                alu_op = `ALU_OP_ADD;
-                itype = 1; 
-                lhi = 1;
-                end
-
-            //J-type
-            `OPCODE_JAL: begin jump = 1; store = 0; jal=1; end
-            `OPCODE_JPR: begin jump=1; store=0; jpr=1; end
+                RegDst          = 1'b0;
+                Jump            = 1'b0;
+                Branch          = 1'b0;
+                MemRead         = 1'b0;
+                MemtoReg        = 1'b0;
+                ALUOp           = 5'b0;
+                MemWrite        = 1'b0;
+                ALUSrc          = 1'b1;
+                RegWrite        = 1'b1;
+                isLHI           = 1'b1;
+                isWWD           = 1'b0;
+                isJAL_JRL       = 1'b0;
+                isJPR_JRL       = 1'b0;
+                sign            = 1'b0;       
+            end
+            `OPCODE_LWD: begin
+                RegDst          = 1'b0;
+                Jump            = 1'b0;
+                Branch          = 1'b0;
+                MemRead         = 1'b1;
+                MemtoReg        = 1'b1;
+                ALUOp           = `ALU_OP_ADD;
+                MemWrite        = 1'b0;
+                ALUSrc          = 1'b1;
+                RegWrite        = 1'b1;
+                isLHI           = 1'b0;
+                isWWD           = 1'b0;
+                isJAL_JRL       = 1'b0;
+                isJPR_JRL       = 1'b0;
+                sign            = 1'b1;
+            end
+            `OPCODE_SWD: begin 
+                RegDst          = 1'b0;
+                Jump            = 1'b0;
+                Branch          = 1'b0;
+                MemRead         = 1'b0;
+                MemtoReg        = 1'b0;
+                ALUOp           = `ALU_OP_ADD;
+                MemWrite        = 1'b1;
+                ALUSrc          = 1'b1;
+                RegWrite        = 1'b0;
+                isLHI           = 1'b0;
+                isWWD           = 1'b0;
+                isJAL_JRL       = 1'b0;
+                isJPR_JRL       = 1'b0;
+                sign            = 1'b1;
+            end
+            `OPCODE_BNE: begin
+                RegDst          = 1'b0;
+                Jump            = 1'b0;
+                Branch          = 1'b1;
+                MemRead         = 1'b0;
+                MemtoReg        = 1'b0;
+                ALUOp           = `ALU_OP_NE;
+                MemWrite        = 1'b0;
+                ALUSrc          = 1'b0;
+                RegWrite        = 1'b0;
+                isLHI           = 1'b0;
+                isWWD           = 1'b0;
+                isJAL_JRL       = 1'b0;
+                isJPR_JRL       = 1'b0;
+                sign            = 1'b1;
+            end
+            `OPCODE_BEQ: begin
+                RegDst          = 1'b0;
+                Jump            = 1'b0;
+                Branch          = 1'b1;
+                MemRead         = 1'b0;
+                MemtoReg        = 1'b0;
+                ALUOp           = `ALU_OP_EQ;
+                MemWrite        = 1'b0;
+                ALUSrc          = 1'b0;
+                RegWrite        = 1'b0;
+                isLHI           = 1'b0;
+                isWWD           = 1'b0;
+                isJAL_JRL       = 1'b0;
+                isJPR_JRL       = 1'b0;
+                sign            = 1'b1;
+            end
+            `OPCODE_BGZ: begin
+                RegDst          = 1'b0;
+                Jump            = 1'b0;
+                Branch          = 1'b1;
+                MemRead         = 1'b0;
+                MemtoReg        = 1'b0;
+                ALUOp           = `ALU_OP_GZ;
+                MemWrite        = 1'b0;
+                ALUSrc          = 1'b0;
+                RegWrite        = 1'b0;
+                isLHI           = 1'b0;
+                isWWD           = 1'b0;
+                isJAL_JRL       = 1'b0;
+                isJPR_JRL       = 1'b0;
+                sign            = 1'b1;
+            end
+            `OPCODE_BLZ: begin
+                RegDst          = 1'b0;
+                Jump            = 1'b0;
+                Branch          = 1'b1;
+                MemRead         = 1'b0;
+                MemtoReg        = 1'b0;
+                ALUOp           = `ALU_OP_LZ;
+                MemWrite        = 1'b0;
+                ALUSrc          = 1'b0;
+                RegWrite        = 1'b0;
+                isLHI           = 1'b0;
+                isWWD           = 1'b0;
+                isJAL_JRL       = 1'b0;
+                isJPR_JRL       = 1'b0;
+                sign            = 1'b1;
+            end
+            // J-type
+            `OPCODE_JMP: begin
+                RegDst          = 1'b0;
+                Jump            = 1'b1;
+                Branch          = 1'b0;
+                MemRead         = 1'b0;
+                MemtoReg        = 1'b0;
+                ALUOp           = 5'b0;
+                MemWrite        = 1'b0;
+                ALUSrc          = 1'b0;
+                RegWrite        = 1'b0;
+                isLHI           = 1'b0;
+                isWWD           = 1'b0;
+                isJAL_JRL       = 1'b0;
+                isJPR_JRL       = 1'b0;
+                sign            = 1'b0;
+            end
+            `OPCODE_JAL: begin
+                RegDst          = 1'b0;
+                Jump            = 1'b1;
+                Branch          = 1'b0;
+                MemRead         = 1'b0;
+                MemtoReg        = 1'b0;
+                ALUOp           = 5'b0;
+                MemWrite        = 1'b0;
+                ALUSrc          = 1'b0;
+                RegWrite        = 1'b1;
+                isLHI           = 1'b0;
+                isWWD           = 1'b0;
+                isJAL_JRL       = 1'b1;
+                isJPR_JRL       = 1'b0;
+                sign            = 1'b0;
+            end
+            default: begin
+                RegDst          = 1'b0;
+                Jump            = 1'b0;
+                Branch          = 1'b0;
+                MemRead         = 1'b0;
+                MemtoReg        = 1'b0;
+                ALUOp           = 5'b0;
+                MemWrite        = 1'b0;
+                ALUSrc          = 1'b0;
+                RegWrite        = 1'b0;
+                isLHI           = 1'b0;
+                isWWD           = 1'b0;
+                isJAL_JRL       = 1'b0;
+                isJPR_JRL       = 1'b0;
+                sign            = 1'b0;
+            end
         endcase
-        end
     end
-
-    assign alu_opcode = alu_op;
-    assign isJump = jump;
-    assign isBranch = branch;
-    assign isStore = store;
-    assign isLHI = lhi;
-    assign isJAL = jal;
-    assign isJPR = jpr;
-    assign isItype = itype;
-    assign is_wwd = wwd;
-    
+end
+ 
 endmodule

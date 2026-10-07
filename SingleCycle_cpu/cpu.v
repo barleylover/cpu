@@ -40,8 +40,20 @@ reg [15:0] inst_addr_nxt;
 
 always @(posedge clk or negedge reset_n) begin
     if (!reset_n) begin
-        inst_addr <= 'd0; //0으로 초기화
+        inst_addr <= 0; //0으로 초기화
+        alu_operand1 <=  0;
+        alu_operand2 <= 0;    // 얘네는 왜 초기화하지???
+        rf_wr_enable <= 0;
+        ir_req <= 0
     end else begin
+        if (funct == `FUNC_WWD) begin
+          ir_msg <= inst_addr;
+          ir_req <= 1;
+        end
+        if (ir_ack==1'b1) begin
+          ir_req <= 0;
+        end
+
         inst_addr <= inst_addr_nxt;
     end
 end
@@ -49,7 +61,7 @@ end
 // SECTION: ALU instantiation
 reg  [15:0] alu_operand1,  // ALU: first operand (or operand A) 
             alu_operand2;  // ALU: second operand (or operand B)
-wire  [3:0] alu_opcode;    // ALU: opcode (it may be different to the instruction's opcode)
+wire  [3 :0] alu_opcode;    // ALU: opcode (it may be different to the instruction's opcode)
 wire [15:0] alu_result;    // ALU: output result
 wire        alu_overflow;  // ALU: overflow or carry output
 
@@ -59,7 +71,7 @@ ALU alu_w16_m (
 );
 
 // SECTION: Register File instantiation
-reg                  rf_wr_enable;  // Register File: write enable
+wire                  rf_wr_enable;  // Register File: write enable
 reg  [REG_BITS -1:0] rf_rd_reg1;    // Register File: read register 1
 reg  [REG_BITS -1:0] rf_rd_reg2;    // Register File: read register 2
 reg  [REG_BITS -1:0] rf_wr_reg;     // Register File: write register
@@ -80,7 +92,7 @@ RegisterFile #(
 /*******************************************************
  * PART 2: Instruction Decoder and Control Unit
  *******************************************************
- 
+
  Description
    - This part is for instruction decoder and control unit
    - As you already learned in the class, the CPU converts instruction into the micro-code that
@@ -98,14 +110,22 @@ RegisterFile #(
 // SECTION: Instruction Decoder
 
 // ADD YOUR CODE HERE
-wire isStore, isJump, isItype, is_wwd;
+reg isLHI, isJAL, isJPR, is_wwd;
+reg [3:0] ALUOp;
+reg RegDst, MemRead, MemtoReg, MemWrite, RegWrite, Branch, Jump;
 // SECTION: Control Unit instantiation
 
 ControlUnit ctrl_unit (
     // FILL OUT THE INTERFACE FOR THE CONTROL UNIT
     .rd_inst(rd_inst),
-    .isJump(isJump), .isStore(isStore), .alu_opcode(alu_opcode), .isItype(isItype), .is_wwd(is_wwd)
+    .ALUOp(ALUOp), .RegDst(RegDst), .MemRead(MemRead), .MemtoReg(MemtoReg), .MemWrite(MemWrite), .RegWrite(RegWrite), .Branch(Branch), .Jump(Jump),
+    .isLHI(isLHI), .isJAL(isJAL), .isJPR(isJPR), is_wwd(is_wwd)
 );
+
+always @(*) begin
+  rf_wr_enable = ;
+  alu_opcode = alu_op;
+end
 
 
 /*******************************************************
@@ -126,52 +146,14 @@ ControlUnit ctrl_unit (
 
 // ADD YOUR CODE HERE
 localparam IF=0, ID=1, EX=2, WB=3, MEM=4;
+reg [3:0] 
 
-reg [3:0] state, state_nxt;
-reg [15:0] pc, pc_nxt;
-reg [15:0] msg;
+always @(posedge) begin
 
-
-always @(posedge clk) begin
-  if (reset_n!) begin
-    state <= IF;
-    pc <= 0;
-  end
-  else begin
-    state <= state_nxt;
-    pc <= pc_nxt;
-  end
 end
-
 always @(*) begin
-  if (state==IF) begin
-    pc_nxt = pc+4;
-    immediate = pc[7:0];
-    state_nxt = ID;
-  end
-  
-  else if (state==ID) begin
-    rf_rd_reg1 = inst[25:21];
-    rf_rd_reg2 = inst[20:16];
-    if (isItype) begin wr_reg=inst[20:16]; end
-    else begin wr_reg=inst[15:11]; end
-    wr_data = alu_result;
-    rf_wr_enable = isStore;
-    state_nxt = EX;
-    if (is_wwd) begin
-      msg = rf_rd_data1;
-    end
-  end
-
-  else if (state == EX) begin
-    alu_operand1 = rf_rd_data1;
-    if (isItype) begin alu_operand2 = rf_rd_data2; end
-    else begin alu_operand2 = $signed(immediate) >>> 8; end
-    state_nxt = IF;
-  end
-
+  case()
 end
-
 
 /*******************************************************
  * PART 4: Datapath
@@ -185,8 +167,8 @@ end
 // SECTION: Datapath
 
 // ADD YOUR CODE HERE
-assign inst_addr = pc;
-assign ir_req = is_wwd;
-assign ir_msg = msg;
+assign inst_addr = ;
+assign ir_req = ;
+assign ir_msg = ;
   
 endmodule
