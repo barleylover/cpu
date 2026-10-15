@@ -36,27 +36,6 @@ localparam WORD_SIZE = 16;  // size of each word, address
 localparam REG_BITS  = 2;   // the size of register index (4 registers -> 2bit register ID)
 
 // SECTION: Wires and Registers
-reg [15:0] inst_addr_nxt;
-
-always @(posedge clk or negedge reset_n) begin
-    if (!reset_n) begin
-        inst_addr <= 0; //0으로 초기화
-        alu_operand1 <=  0;
-        alu_operand2 <= 0;    // 얘네는 왜 초기화하지???
-        rf_wr_enable <= 0;
-        ir_req <= 0
-    end else begin
-        if (funct == `FUNC_WWD) begin
-          ir_msg <= inst_addr;
-          ir_req <= 1;
-        end
-        if (ir_ack==1'b1) begin
-          ir_req <= 0;
-        end
-
-        inst_addr <= inst_addr_nxt;
-    end
-end
 
 // SECTION: ALU instantiation
 reg  [15:0] alu_operand1,  // ALU: first operand (or operand A) 
@@ -110,22 +89,18 @@ RegisterFile #(
 // SECTION: Instruction Decoder
 
 // ADD YOUR CODE HERE
-reg isLHI, isJAL, isJPR, is_wwd;
+reg isLHI, isORI, isWWD;
 reg [3:0] ALUOp;
-reg RegDst, MemRead, MemtoReg, MemWrite, RegWrite, Branch, Jump;
+reg RegDst, Jump, Branch, MemRead, MemtoReg, MemWrite, ALUSrc, RegWrite;
 // SECTION: Control Unit instantiation
 
 ControlUnit ctrl_unit (
     // FILL OUT THE INTERFACE FOR THE CONTROL UNIT
     .rd_inst(rd_inst),
-    .ALUOp(ALUOp), .RegDst(RegDst), .MemRead(MemRead), .MemtoReg(MemtoReg), .MemWrite(MemWrite), .RegWrite(RegWrite), .Branch(Branch), .Jump(Jump),
-    .isLHI(isLHI), .isJAL(isJAL), .isJPR(isJPR), is_wwd(is_wwd)
-);
+    .RegDst(RegDst), .Jump(Jump), .Branch(Branch), .MemRead(MemRead), .MemtoReg(MemtoReg), .MemWrite(MemWrite), .ALUSrc(ALUSrc), .RegWrite(RegWrite),
+    .ALUOp(ALUOp),
+    .isORI(isORI), .isLHI(isLHI), .isWWD(isWWD));
 
-always @(*) begin
-  rf_wr_enable = ;
-  alu_opcode = alu_op;
-end
 
 
 /*******************************************************
@@ -158,15 +133,16 @@ always @(posedge clk or negedge reset_n) begin
     inst <= inst_nxt
   end
 end
+
 always @(*) begin
-  case()
+  case(state)
     IF:
-      stae_nxt = ;
-      inst_nxt = ;
+      stae_nxt = ID;
+      inst_nxt = inst+4;
     ID:
       state_nxt = state;
       inst_nxt = inst;
-    EX:
+    //EX:
 
 
     //WB:
@@ -176,11 +152,11 @@ always @(*) begin
     WWD:
       if (!is_ack) begin  //wwd 컨티뉴
         state_nxt = WWD;
-        inst_nxt = ;
+        inst_nxt = inst;
       end
       else begin
-        state_nxt = 
-        nxt_inst = ;
+        state_nxt = IF;
+        nxt_inst = inst;
       end
   endcase
 end
