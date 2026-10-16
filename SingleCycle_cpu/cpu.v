@@ -147,41 +147,36 @@ end
 // ADD YOUR CODE HERE
 localparam IF=0, ID=1, EX=2, WB=3, MEM=4, WWD=5;
 reg [3:0] state, state_nxt;
-reg [3:0] inst, nxt_inst;
 
 always @(posedge clk or negedge reset_n) begin
   if(!reset_n) begin
     state <= ID;
-    inst <= rd_inst;
   end else begin
     state <= state_nxt;
-    inst <= inst_nxt
   end
 end
 always @(*) begin
-  case()
-    IF:
-      stae_nxt = ;
-      inst_nxt = ;
+  state_nxt = state;
+  case(state)
+    IF: state_nxt = ID;
     ID:
-      state_nxt = state;
-      inst_nxt = inst;
-    EX:
-
-
-    //WB:
-
-    //MEM:
-
-    WWD:
-      if (!is_ack) begin  //wwd 컨티뉴
+      if (isWWD) begin
         state_nxt = WWD;
-        inst_nxt = ;
+      end else begin
+        state_nxt = EX;
+      end
+    EX:
+      state_nxt = IF;
+    //WB:
+    //MEM:
+    WWD:
+      if (!ir_ack) begin  //wwd 컨티뉴
+        state_nxt = WWD;
       end
       else begin
-        state_nxt = 
-        nxt_inst = ;
+        state_nxt = IF;
       end
+    default: state_nxt = IF;
   endcase
 end
 
