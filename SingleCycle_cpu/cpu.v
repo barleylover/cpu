@@ -192,8 +192,64 @@ end
 // SECTION: Datapath
 
 // ADD YOUR CODE HERE
-assign inst_addr = ;
-assign ir_req = ;
-assign ir_msg = ;
+
+
+reg [15:0] inst_nxt;
+reg [7:0] operand2, operand2_nxt;
+reg bcond;
   
+always @(posedge clk or negedge reset_n or posedge ir_ack) begin
+  if (!reset_n) begin
+    inst_addr <= rd_inst;
+    operand1 <= 16'b0;
+    operand2 <= 16'b0;
+  end
+  else begin 
+    inst_addr <= inst_nxt;
+    operand1 <= operand1_nxt;
+    operand2 <= operand2_nxt;
+  end
+end
+
+always @(*) begin
+  inst = inst_addr+2;
+  case(state)
+    IF:
+      if (Jump) begin
+        inst_nxt = {(rd_inst[7:0]<<1), inst[15:14]};
+      end else if (Branch && bcond) begin
+        inst_nxt = inst + ($signed(rd_inst) >> 8);
+      end else begin
+          inst_nxt = inst;
+      end
+    ID:
+      inst_nxt = rd_inst;
+      rf_rd_reg1 = pc[11:10];
+      rf_rd_reg2 = pd[9:8];
+      
+      if (RegDst) begin
+        rf_wr_reg = pc[9:8];
+      end else begin
+        rf_wr_reg = pc[7:6];
+      end
+
+      operand1_nxt = rf_rd_data1;
+      operand2_nxt = rf_rd_data2;
+    EX:
+      alu_operand1 = operand1;
+      if (ALUSrc) begin
+        alu_operand2 = $signed(pc) >>> 8;
+      end else begin
+        alu_operand2 = operand2;
+      end
+
+      if 
+    WWD:
+
+    //WB:
+    //MEM:
+  
+  endcase
+end
+
 endmodule
