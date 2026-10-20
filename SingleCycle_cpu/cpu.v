@@ -40,7 +40,7 @@ localparam REG_BITS  = 2;   // the size of register index (4 registers -> 2bit r
 // SECTION: ALU instantiation
 reg  [15:0] alu_operand1,  // ALU: first operand (or operand A) 
             alu_operand2;  // ALU: second operand (or operand B)
-wire  [3 :0] alu_opcode;    // ALU: opcode (it may be different to the instruction's opcode)
+reg  [3 :0] alu_opcode;    // ALU: opcode (it may be different to the instruction's opcode)
 wire [15:0] alu_result;    // ALU: output result
 wire        alu_overflow;  // ALU: overflow or carry output
 
@@ -50,7 +50,7 @@ ALU alu_w16_m (
 );
 
 // SECTION: Register File instantiation
-wire                  rf_wr_enable;  // Register File: write enable
+reg                  rf_wr_enable;  // Register File: write enable
 reg  [REG_BITS -1:0] rf_rd_reg1;    // Register File: read register 1
 reg  [REG_BITS -1:0] rf_rd_reg2;    // Register File: read register 2
 reg  [REG_BITS -1:0] rf_wr_reg;     // Register File: write register
@@ -122,42 +122,37 @@ ControlUnit ctrl_unit (
 // ADD YOUR CODE HERE
 localparam IF=0, ID=1, EX=2, WB=3, MEM=4, WWD=5;
 reg [3:0] state, state_nxt;
-reg [3:0] inst, nxt_inst;
 
 always @(posedge clk or negedge reset_n) begin
   if(!reset_n) begin
     state <= ID;
-    inst <= rd_inst;
   end else begin
     state <= state_nxt;
-    inst <= inst_nxt
   end
 end
 
 always @(*) begin
+  state_nxt = state;
   case(state)
-    IF:
-      stae_nxt = ID;
-      inst_nxt = inst+4;
+    IF: state_nxt = ID;
     ID:
-      state_nxt = state;
-      inst_nxt = inst;
-    //EX:
-
-
-    //WB:
-
-    //MEM:
-
-    WWD:
-      if (!is_ack) begin  //wwd 컨티뉴
+      if (isWWD) begin
         state_nxt = WWD;
-        inst_nxt = inst;
+      end else begin
+        state_nxt = EX;
+      end
+    EX:
+      state_nxt = IF;
+    //WB:
+    //MEM:
+    WWD:
+      if (!ir_ack) begin  //wwd 컨티뉴
+        state_nxt = WWD;
       end
       else begin
         state_nxt = IF;
-        nxt_inst = inst;
       end
+    default: state_nxt = IF;
   endcase
 end
 
@@ -173,8 +168,91 @@ end
 // SECTION: Datapath
 
 // ADD YOUR CODE HERE
-assign inst_addr = ;
-assign ir_req = ;
-assign ir_msg = ;
+
+
+reg [15:0] inst_nxt, inst;
+reg [15:0] operand1, operand1_nxt;
+reg [15:0] operand2, operand2_nxt;
+reg bcond, bcond_nxt;
+reg [15:0] alu_re, alu_re_nxt;
   
+always @(posedge clk or negedge reset_n) begin
+  if (!reset_n) begin
+    inst_addr <= 0;
+    alu_re <= 0;
+    ir_req <= 0;
+    bcond <= 0;
+  end
+  else begin 
+    inst_addr <= inst_nxt;
+    operand1 <= operand1_nxt;
+    operand2 <= operand2_nxt;
+    alu_re <= alu_re_nxt;
+    ir_req <= 0;
+    bcond <= 0;
+    if (isWWD) begin
+      ir_req <= 1;
+      ir_msg <= rf_rd_data1;
+      if (ir_ack) begin
+        ir_req<=0;
+        end
+    end
+    if (Branch) begin
+      bcond <= bcond_nxt;
+    end
+  end
+end
+
+always @(*) begin
+  case(state)
+    ID: begin
+      alu_re_nxt = alu_re;
+      inst = inst_addr+2;
+      if (Jump) begin
+        inst_nxt = {inst_addr[15:12], rd_inst[11:0]};
+      end else if (Branch && bcond) begin
+        inst_nxt = inst + {8*(rd_inst[7]), rd_inst};
+      end else begin
+        inst_nxt = inst;
+      end
+    end
+    IF: begin
+      inst_nxt = rd_inst;
+      rf_rd_reg1 = rd_inst[11:10];
+      rf_rd_reg2 = rd_inst[9:8];
+      rf_wr_data = alu_re;
+      rf_wr_enable = RegWrite;
+      if (RegDst==1) begin
+        rf_wr_reg = rd_inst[7:6];
+      end else begin
+        rf_wr_reg = rd_inst[9:8];
+      end
+
+      operand1_nxt = rf_rd_data1;
+      operand2_nxt = rf_rd_data2;
+    end
+    EX: begin
+      alu_opcode = ALUOp;
+      inst_nxt = inst_addr;
+      alu_operand1 = operand1;
+      
+      if (ALUSrc) begin
+        alu_operand2 = {(8{rd_inst[7]}), rd_inst[7:0]};
+      end else begin
+        alu_operand2 = operand2;
+      end
+      alu_re_nxt = alu_result;
+
+      if (Branch) begin
+        bcond_nxt = alu_operand1 == alu_operand2;
+      end
+    end
+    //WWD:
+      
+    //WB:
+    //MEM:
+  
+  endcase
+end
+
 endmodule
