@@ -89,17 +89,18 @@ RegisterFile #(
 // SECTION: Instruction Decoder
 
 // ADD YOUR CODE HERE
-reg isLHI, isORI, isWWD;
-reg [3:0] ALUOp;
-reg RegDst, Jump, Branch, MemRead, MemtoReg, MemWrite, ALUSrc, RegWrite;
+wire isLHI, isORI, isWWD, bcond;
+wire [3:0] ALUOp;
+wire RegDst, Jump, Branch, MemRead, MemtoReg, MemWrite, ALUSrc, RegWrite;
 // SECTION: Control Unit instantiation
 
 ControlUnit ctrl_unit (
     // FILL OUT THE INTERFACE FOR THE CONTROL UNIT
     .rd_inst(rd_inst),
+    .rs_data(rf_rd_data1), .rt_data(rf_rd_data2),
     .RegDst(RegDst), .Jump(Jump), .Branch(Branch), .MemRead(MemRead), .MemtoReg(MemtoReg), .MemWrite(MemWrite), .ALUSrc(ALUSrc), .RegWrite(RegWrite),
     .ALUOp(ALUOp),
-    .isORI(isORI), .isLHI(isLHI), .isWWD(isWWD));
+    .isORI(isORI), .isLHI(isLHI), .isWWD(isWWD), .bcond(bcond));
 
 
 
@@ -125,7 +126,7 @@ reg [3:0] state, state_nxt;
 
 always @(posedge clk or negedge reset_n) begin
   if(!reset_n) begin
-    state <= ID;
+    state <= IF;
   end else begin
     state <= state_nxt;
   end
@@ -171,88 +172,38 @@ end
 
 
 reg [15:0] inst_nxt, inst;
-reg [15:0] operand1, operand1_nxt;
-reg [15:0] operand2, operand2_nxt;
-reg bcond, bcond_nxt;
-reg [15:0] alu_re, alu_re_nxt;
   
 always @(posedge clk or negedge reset_n) begin
   if (!reset_n) begin
-    inst_addr <= 0;
-    alu_re <= 0;
-    ir_req <= 0;
-    bcond <= 0;
+    inst_addr <= 16'b0;
   end
   else begin 
     inst_addr <= inst_nxt;
-    operand1 <= operand1_nxt;
-    operand2 <= operand2_nxt;
-    alu_re <= alu_re_nxt;
-    ir_req <= 0;
-    bcond <= 0;
-    if (isWWD) begin
-      ir_req <= 1;
-      ir_msg <= rf_rd_data1;
-      if (ir_ack) begin
-        ir_req<=0;
-        end
-    end
-    if (Branch) begin
-      bcond <= bcond_nxt;
-    end
   end
 end
 
 always @(*) begin
-  case(state)
-    ID: begin
-      alu_re_nxt = alu_re;
-      inst = inst_addr+2;
-      if (Jump) begin
-        inst_nxt = {inst_addr[15:12], rd_inst[11:0]};
-      end else if (Branch && bcond) begin
-        inst_nxt = inst + {8*(rd_inst[7]), rd_inst};
-      end else begin
-        inst_nxt = inst;
-      end
-    end
-    IF: begin
-      inst_nxt = rd_inst;
-      rf_rd_reg1 = rd_inst[11:10];
-      rf_rd_reg2 = rd_inst[9:8];
-      rf_wr_data = alu_re;
-      rf_wr_enable = RegWrite;
-      if (RegDst==1) begin
-        rf_wr_reg = rd_inst[7:6];
-      end else begin
-        rf_wr_reg = rd_inst[9:8];
-      end
+  rf_rd_reg1 = rd_inst[11:10];
+  rf_rd_reg2 = rd_inst[9:8];
+  rf_wr_reg = RegDst ? rd_inst[7:6] : rd_inst[9:8];
+  rf_wr_data = isLHI? {rd_inst[7:0], 8'b0} : alu_result;
+  rf_wr_enable = RegWrite;
 
-      operand1_nxt = rf_rd_data1;
-      operand2_nxt = rf_rd_data2;
-    end
-    EX: begin
-      alu_opcode = ALUOp;
-      inst_nxt = inst_addr;
-      alu_operand1 = operand1;
-      
-      if (ALUSrc) begin
-        alu_operand2 = {(8{rd_inst[7]}), rd_inst[7:0]};
-      end else begin
-        alu_operand2 = operand2;
-      end
-      alu_re_nxt = alu_result;
+  alu_operand1 = rf_rd_data1;
+  alu_operand2 = ALUSrc? {{8{rd_inst[7]}}, rd_inst[7:0]} : rf_rd_data2;
+  alu_opcode = ALUOp;
 
-      if (Branch) begin
-        bcond_nxt = alu_operand1 == alu_operand2;
-      end
-    end
-    //WWD:
-      
-    //WB:
-    //MEM:
+  ir_req = isWWD & ~ir_ack;
+  ir_msg = rf_rd_data1;
   
-  endcase
+  inst = inst_addr + 1;
+  if (isWWD && !ir_ack) begin
+    inst_nxt = inst_addr;
+  end else if (Branch && bcond) begin
+    inst_nxt = inst + {{8{rd_inst[7]}}, rd_inst[7:0]};
+  end else if (Jump) begin
+    inst_nxt = {inst_addr[15:12], rd_inst[11:0]};
+  end else begin inst_nxt = inst; end
 end
 
 endmodule

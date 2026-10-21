@@ -55,7 +55,7 @@ module ALU
 			OP_LLS	: F = {A_i[14:0], 1'b0};		// = A_i << 1
 			OP_ALS	: F = {A_i[14:0], 1'b0};		// = A_i <<< 1
 			OP_RL	: F = {A_i[14:0], A_i[15]};	// = (A_i<<1) | (A_i>>15);
-			default	:	;
+			default	: begin	C=0; F=0; end
 		endcase	
 	end
 	assign F_o = F;

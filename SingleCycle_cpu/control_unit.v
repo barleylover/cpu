@@ -3,10 +3,11 @@
 module ControlUnit (
     // DEFINE THE INTERFACE OF THE CONTROL UNIT HERE
     input [15:0] rd_inst,
+    input [1:0] rs_data, rt_data,
     
     output reg RegDst, Jump, Branch, MemRead, MemtoReg, MemWrite, ALUSrc, RegWrite,
     output reg [3:0] ALUOp,
-    output reg isWWD, isORI, isLHI
+    output reg isWWD, isORI, isLHI, bcond
 );
 
 // ADD YOUR CODE HERE
@@ -27,6 +28,7 @@ module ControlUnit (
         isWWD = 0;
         isLHI = 0;
         isORI = 0;
+        bcond = 0;
         case(opcode)
             `OPCODE_ADI : begin
                 ALUOp = `ALU_OP_ADD;
@@ -57,15 +59,19 @@ module ControlUnit (
             end
             `OPCODE_BNE :   begin
                 Branch = 1;
+                bcond = (rs_data==rt_data)? 0 : 1;
             end
             `OPCODE_BEQ :   begin
                 Branch = 1;
+                bcond = (rs_data==rt_data)? 1 : 0;
             end
             `OPCODE_BGZ :   begin
                 Branch = 1;
+                bcond = (rs_data>0)? 1:0;
             end
             `OPCODE_BLZ :   begin
                 Branch = 1;
+                bcond = ($signed(rs_data)<0)? 1:0;
             end
             `OPCODE_JMP :   begin
                 Jump = 1;
