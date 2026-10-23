@@ -2,7 +2,8 @@
 
 module CPU_W16_R4 #(
     parameter WORD_SIZE = 16,
-    parameter REG_BITS  = 2
+    parameter REG_BITS  = 2,
+    parameter MEM_SIZE = 256;
 )
 (
     // Global Signals
@@ -83,32 +84,52 @@ module CPU_W16_R4 #(
 ********************************************************/
     
     // Instruction Decoder IF
-    // Fill here 
-    // Fill here
-    // Fill here
+    reg [WORD_SIZE-1:0] imem_rdata_o;
 
     // Register File IF
-    // Fill here 
-    // Fill here
-    // Fill here
+    reg                  rf_wr_enable;  // Register File: write enable
+    reg  [REG_BITS -1:0] rf_rd_reg1;    // Register File: read register 1
+    reg  [REG_BITS -1:0] rf_rd_reg2;    // Register File: read register 2
+    reg  [REG_BITS -1:0] rf_wr_reg;     // Register File: write register
+    wire [WORD_SIZE-1:0] rf_rd_data1;   // Register File: read data 1
+    wire [WORD_SIZE-1:0] rf_rd_data2;   // Register File: read data 2
+    reg  [WORD_SIZE-1:0] rf_wr_data;    // Register File: write data
 
 
     // ALU IF
-    // Fill here
-    // Fill here
-    // Fill here
+    reg  [15:0] alu_operand1,  // ALU: first operand (or operand A) 
+                alu_operand2;  // ALU: second operand (or operand B)
+    reg  [3 :0] alu_opcode;    // ALU: opcode (it may be different to the instruction's opcode)
+    wire [15:0] alu_result;    // ALU: output result
+    wire        alu_overflow;  // ALU: overflow or carry output
 
  
     // Control Unit IF    
-    // Fill here 
-    // Fill here
-    // Fill here
+    wire    isLHI, 
+            isORI, 
+            isWWD, 
+            bcond;
+    wire [3:0] ALUOp;
+    wire    RegDst, 
+            Jump, 
+            Branch, 
+            MemRead, 
+            MemtoReg, 
+            MemWrite, 
+            ALUSrc, 
+            RegWrite;
+
 
 
     // Program Counter IF
-    // Fill here
-    // Fill here
-    // Fill here
+    localparam  IF=0, 
+                ID=1, 
+                EX=2, 
+                WB=3, 
+                MEM=4, 
+                WWD=5;
+    reg [3:0]   state, 
+                state_nxt;
 
 
 
@@ -133,9 +154,11 @@ module CPU_W16_R4 #(
 
 
     // Part1: Instruction Memory Datapath
-    // Fill here (may be followed by lab4)
-    // Fill here (may be followed by lab4)
-    // Fill here (may be followed by lab4)
+    InstructionMemory #(
+        .WORD_SIZE(WORD_SIZE), .MEM_SIZE(MEM_SIZE)
+    ) im_w16_m256 (
+        .imem_addr_i(), .imem_rdata_o()
+    );
 
 
     // Part2: Register File Datapath
@@ -145,12 +168,12 @@ module CPU_W16_R4 #(
     
     // Register File 
     RegisterFile #(
-        .WORD_SIZE  (WORD_SIZE), 
-        .REG_BITS   (REG_BITS)
+        .WORD_SIZE(WORD_SIZE), .REG_BITS(REG_BITS)
     ) rf_w16_r4 (
-        // Fill here
-        // Fill here
-        // Fill here
+       .clk(clk), .reset_n(reset_n),
+       .wr_enable(rf_wr_enable),
+      .rd_reg1(rf_rd_reg1), .rd_reg2(rf_rd_reg2), .wr_reg(rf_wr_reg),
+      .rd_data1(rf_rd_data1), .rd_data2(rf_rd_data2), .wr_data(rf_wr_data)
     );
 
     // Part3: ALU Datapath
@@ -160,9 +183,8 @@ module CPU_W16_R4 #(
     
     // Arithmetic Logic Unit
     ALU alu_w16_m (
-        // Fill here
-        // Fill here
-        // Fill here
+        .A_i(alu_operand1), .B_i(alu_operand2), .OP_i(alu_opcode), .C_i(1'b0), 
+        .F_o(alu_result), .C_o(alu_overflow)
     );
 
 
@@ -173,10 +195,12 @@ module CPU_W16_R4 #(
     
     // Control Unit 
     ControlUnit ctrl_unit (
-        // Fill here
-        // Fill here
-        // Fill here
-    );
+    // FILL OUT THE INTERFACE FOR THE CONTROL UNIT
+        .rd_inst(rd_inst),
+        .rs_data(rf_rd_data1), .rt_data(rf_rd_data2),
+        .RegDst(RegDst), .Jump(Jump), .Branch(Branch), .MemRead(MemRead), .MemtoReg(MemtoReg), .MemWrite(MemWrite), .ALUSrc(ALUSrc), .RegWrite(RegWrite),
+        .ALUOp(ALUOp),
+        .isORI(isORI), .isLHI(isLHI), .isWWD(isWWD), .bcond(bcond));
 
     // Part5: Program Counter Datapath
     // Fill here
