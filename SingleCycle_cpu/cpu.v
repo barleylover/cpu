@@ -84,7 +84,7 @@ module CPU_W16_R4 #(
 ********************************************************/
     
     // Instruction Decoder IF
-    reg [WORD_SIZE-1:0] imem_rdata_o;
+    reg [WORD_SIZE-1:0] imem_raddr, imem_raddr_nxt;
 
     // Register File IF
     reg                  rf_wr_enable;  // Register File: write enable
@@ -148,23 +148,29 @@ module CPU_W16_R4 #(
 ********************************************************/
 
     // Program Counter, Interrupt Handle State
-    // Fill here
-    // Fill here
-    // Fill here
 
 
     // Part1: Instruction Memory Datapath
-    InstructionMemory #(
-        .WORD_SIZE(WORD_SIZE), .MEM_SIZE(MEM_SIZE)
-    ) im_w16_m256 (
-        .imem_addr_i(), .imem_rdata_o()
-    );
+
+    always @(posedge clk or negedge reset_n) begin
+        if (!reset_n) begin
+            imem_raddr <= 16'b0;
+        end else begin 
+            imem_raddr <= imem_raddr_nxt;
+        end
+    end
+
+    assign imem_raddr_o = imem_raddr;
 
 
     // Part2: Register File Datapath
-    // Fill here
-    // Fill here
-    // Fill here
+    always @(*) begin
+        rf_rd_reg1 = imem_rdata_i[11:10];
+        rf_rd_reg2 = imem_rdata_i[9:8];
+        rf_wr_reg = RegDst ? imem_rdata_i[7:6] : imem_rdata_i[9:8];
+        rf_wr_data = isLHI? {imem_rdata_i[7:0], 8'b0} : alu_result;
+        rf_wr_enable = RegWrite;
+    end
     
     // Register File 
     RegisterFile #(
@@ -177,10 +183,12 @@ module CPU_W16_R4 #(
     );
 
     // Part3: ALU Datapath
-    // Fill here
-    // Fill here
-    // Fill here
-    
+    always @(*) begin
+        alu_operand1 = rf_rd_data1;
+        alu_operand2 = ALUSrc? {{8{imem_rdata_i[7]}}, imem_rdata_i[7:0]} : rf_rd_data2;
+        alu_opcode = ALUOp;
+    end
+
     // Arithmetic Logic Unit
     ALU alu_w16_m (
         .A_i(alu_operand1), .B_i(alu_operand2), .OP_i(alu_opcode), .C_i(1'b0), 
@@ -189,23 +197,31 @@ module CPU_W16_R4 #(
 
 
     // Part4: Control Unit Datapath
-    // Fill here
-    // Fill here
-    // Fill here
-    
+    always @(*) begin
+        ir_req = isWWD & ~ir_ack;
+        ir_msg = rf_rd_data1;
+    end
     // Control Unit 
     ControlUnit ctrl_unit (
     // FILL OUT THE INTERFACE FOR THE CONTROL UNIT
-        .rd_inst(rd_inst),
+        .rd_inst(imem_rdata_i),
         .rs_data(rf_rd_data1), .rt_data(rf_rd_data2),
         .RegDst(RegDst), .Jump(Jump), .Branch(Branch), .MemRead(MemRead), .MemtoReg(MemtoReg), .MemWrite(MemWrite), .ALUSrc(ALUSrc), .RegWrite(RegWrite),
         .ALUOp(ALUOp),
         .isORI(isORI), .isLHI(isLHI), .isWWD(isWWD), .bcond(bcond));
 
     // Part5: Program Counter Datapath
-    // Fill here
-    // Fill here
-    // Fill here
+    always @(*) begin
+    
+    inst = imem_raddr + 1;
+    if (isWWD && !ir_ack) begin
+        imem_raddr_nxt = imem_raddr;
+    end else if (Branch && bcond) begin
+        imem_raddr_nxt = inst + {{8{imem_rdata_i[7]}}, imem_rdata_i[7:0]};
+    end else if (Jump) begin
+        imem_raddr_nxt = {imem_raddr[15:12], imem_rdata_i[11:0]};
+    end else begin imem_raddr_nxt = inst; end
+    end
     
     
     // Part6: Program Counter & Interrupt Handler with FSM
@@ -223,9 +239,40 @@ module CPU_W16_R4 #(
     //          - 16'h2001 = 16'b0010_0000_0000_0001
     //      - imem_rdata = 16'h908b; JMP 0x8b(139)    -> pc='d139
     //          - 16'h908b = 16'b1001_0000_1000_1011
-    // Fill here 
-    // Fill here
-    // Fill here
+
+    always @(posedge clk or negedge reset_n) begin
+        if(!reset_n) begin
+            state <= IF;
+        end else begin
+            state <= state_nxt;
+        end
+    end
+
+    always @(*) begin
+        state_nxt = state;
+        case(state)
+            IF: state_nxt = ID;
+            ID:
+            if (isWWD) begin
+                state_nxt = WWD;
+            end else begin
+                state_nxt = EX;
+            end
+            EX: state_nxt = IF;
+            WB: 
+            MEM:
+            WWD:
+            if (!ir_ack) begin  //wwd 컨티뉴
+                state_nxt = WWD;
+            end
+            else begin
+                state_nxt = IF;
+            end
+            default: state_nxt = IF;
+        endcase
+    end
+    
+    
     
 
 endmodule
