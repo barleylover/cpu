@@ -168,7 +168,7 @@ module CPU_W16_R4 #(
         rf_rd_reg1 = imem_rdata_i[11:10];
         rf_rd_reg2 = imem_rdata_i[9:8];
         rf_wr_reg = RegDst ? imem_rdata_i[7:6] : imem_rdata_i[9:8];
-        rf_wr_data = isLHI? {imem_rdata_i[7:0], 8'b0} : alu_result;
+        rf_wr_data = MemtoReg ? dmem_rdata_i : alu_result;
         rf_wr_enable = RegWrite;
     end
     
@@ -185,7 +185,17 @@ module CPU_W16_R4 #(
     // Part3: ALU Datapath
     always @(*) begin
         alu_operand1 = rf_rd_data1;
-        alu_operand2 = ALUSrc? {{8{imem_rdata_i[7]}}, imem_rdata_i[7:0]} : rf_rd_data2;
+        if (ALUSrc) begin
+            if (isLHI) begin
+                alu_operand2 = {imem_rdata_i[7:0], 8'b0};
+            end else if(isORI) begin
+                alu_operand2 = {8'b0, imem_rdata_i[7:0]};
+            end else begin
+                alu_operand2 = {{8{imem_rdata_i[7]}}, imem_rdata_i[7:0]};
+            end
+        end else begin
+            alu_operand2 = rf_rd_data2;
+        end
         alu_opcode = ALUOp;
     end
 
@@ -209,18 +219,22 @@ module CPU_W16_R4 #(
         .RegDst(RegDst), .Jump(Jump), .Branch(Branch), .MemRead(MemRead), .MemtoReg(MemtoReg), .MemWrite(MemWrite), .ALUSrc(ALUSrc), .RegWrite(RegWrite),
         .ALUOp(ALUOp),
         .isORI(isORI), .isLHI(isLHI), .isWWD(isWWD), .bcond(bcond));
+    
+    assign dmem_addr_o = alu_result;
+    assign dmem_wdata_o = rf_rd_data2;
+    assign dmem_read_o = MemRead;
+    assign dmem_write_o = MemWrite;
 
     // Part5: Program Counter Datapath
     always @(*) begin
-    
-    inst = imem_raddr + 1;
-    if (isWWD && !ir_ack) begin
-        imem_raddr_nxt = imem_raddr;
-    end else if (Branch && bcond) begin
-        imem_raddr_nxt = inst + {{8{imem_rdata_i[7]}}, imem_rdata_i[7:0]};
-    end else if (Jump) begin
-        imem_raddr_nxt = {imem_raddr[15:12], imem_rdata_i[11:0]};
-    end else begin imem_raddr_nxt = inst; end
+        inst = imem_raddr + 1;
+        if (isWWD && !ir_ack) begin
+            imem_raddr_nxt = imem_raddr;
+        end else if (Branch && bcond) begin
+            imem_raddr_nxt = inst + {{8{imem_rdata_i[7]}}, imem_rdata_i[7:0]};
+        end else if (Jump) begin
+            imem_raddr_nxt = {imem_raddr[15:12], imem_rdata_i[11:0]};
+        end else begin imem_raddr_nxt = inst; end
     end
     
     
@@ -258,9 +272,13 @@ module CPU_W16_R4 #(
             end else begin
                 state_nxt = EX;
             end
-            EX: state_nxt = IF;
-            WB: 
-            MEM:
+            EX: 
+                if (MemWrite | MemRead) begin
+                    state_nxt = MEM;
+                end else begin
+                    state_nxt = IF;
+                end
+            MEM: state_nxt = IF;
             WWD:
             if (!ir_ack) begin  //wwd 컨티뉴
                 state_nxt = WWD;
