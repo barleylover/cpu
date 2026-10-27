@@ -109,6 +109,9 @@ module CPU_W16_R4 #(
             isORI, 
             isWWD, 
             isTCP,
+            isJAL,
+            isJPR,
+            isJRL,
             bcond;
     wire [3:0] ALUOp;
     wire    RegDst, 
@@ -168,8 +171,21 @@ module CPU_W16_R4 #(
     always @(*) begin
         rf_rd_reg1 = imem_rdata_i[11:10];
         rf_rd_reg2 = imem_rdata_i[9:8];
-        rf_wr_reg = RegDst ? imem_rdata_i[7:6] : imem_rdata_i[9:8];
-        rf_wr_data = MemtoReg ? dmem_rdata_i : alu_result;
+        
+        if (isJAL || isJRL) begin
+            rf_wr_reg = 2;
+        end else if (RegDst) begin
+            rf_wr_reg = imem_rdata_i[7:6];    
+        end else begin
+            rf_wr_reg = imem_rdata_i[9:8];
+        end
+        if (MemtoReg) begin
+            rf_wr_data = dmem_rdata_i;
+        end else if (isJAL || isJRL) begin
+            rf_wr_data = imem_raddr+1;
+        end else begin
+            rf_wr_data = alu_result;
+        end
         rf_wr_enable = RegWrite;
     end
     
@@ -187,6 +203,8 @@ module CPU_W16_R4 #(
     always @(*) begin
         if (isLHI) begin
             alu_operand1 = 0;
+        end else if (isTCP) begin
+            alu_operand1 = ~rf_rd_data1;
         end else begin
             alu_operand1 = rf_rd_data1;
         end
@@ -216,7 +234,7 @@ module CPU_W16_R4 #(
 
     // Part4: Control Unit Datapath
     reg ir_req;
-    reg [WORD_SIZE-1:0] ir_msg, inst;
+    reg [WORD_SIZE-1:0] inst;
 
     // Control Unit 
     ControlUnit ctrl_unit (
@@ -225,7 +243,9 @@ module CPU_W16_R4 #(
         .rs_data(rf_rd_data1), .rt_data(rf_rd_data2),
         .RegDst(RegDst), .Jump(Jump), .Branch(Branch), .MemRead(MemRead), .MemtoReg(MemtoReg), .MemWrite(MemWrite), .ALUSrc(ALUSrc), .RegWrite(RegWrite),
         .ALUOp(ALUOp),
-        .isORI(isORI), .isLHI(isLHI), .isWWD(isWWD), .isTCP(isTCP), .bcond(bcond));
+        .isORI(isORI), .isLHI(isLHI), .isWWD(isWWD), .isTCP(isTCP), 
+        .isJAL(isJAL), .isJPR(isJPR), .isJRL(isJRL),
+        .bcond(bcond));
     
     assign dmem_addr_o = alu_result;
     assign dmem_wdata_o = rf_rd_data2;
@@ -239,16 +259,17 @@ module CPU_W16_R4 #(
         if (isWWD && !ir_ack_i) begin
             imem_raddr_nxt = imem_raddr;
             ir_req = 1;
-            ir_msg = rf_rd_data1;
         end else if (Branch && bcond) begin
             imem_raddr_nxt = inst + {{8{imem_rdata_i[7]}}, imem_rdata_i[7:0]};
         end else if (Jump) begin
             imem_raddr_nxt = {imem_raddr[15:12], imem_rdata_i[11:0]};
+        end else if (isJPR || isJRL) begin
+            imem_raddr_nxt = rf_rd_data1;
         end else begin imem_raddr_nxt = inst; end
     end
     
     assign ir_req_o = ir_req;
-    assign ir_msg_o = ir_msg;
+    assign ir_msg_o = rf_rd_data1;
 
     // Part6: Program Counter & Interrupt Handler with FSM
     // - program counter, data memory, interrupt handler is dependant with interrupt state
@@ -266,36 +287,33 @@ module CPU_W16_R4 #(
     //      - imem_rdata = 16'h908b; JMP 0x8b(139)    -> pc='d139
     //          - 16'h908b = 16'b1001_0000_1000_1011
 
-    always @(posedge clk or negedge reset_n) begin
-        if(!reset_n) begin
-            state <= IF;
-        end else begin
-            state <= state_nxt;
-        end
-    end
+    // always @(posedge clk or negedge reset_n) begin
+    //     if(!reset_n) begin
+    //         state <= IF;
+    //     end else begin
+    //         state <= state_nxt;
+    //     end
+    // end
 
-    always @(*) begin
-        state_nxt = state;
-        case(state)
-            IF: state_nxt = ID;
-            ID:
-            if (isWWD) begin
-                state_nxt = WWD;
-            end else begin
-                state_nxt = EX;
-            end
-            EX: 
-                if (!ir_ack_i) begin  //wwd 컨티뉴
-                    state_nxt = WWD;
-                end
-                else begin
-                    state_nxt = IF;
-                end
-            default: state_nxt = IF;
-        endcase
-    end
-    
-    
-    
+    // always @(*) begin
+    //     state_nxt = state;
+    //     case(state)
+    //         IF: state_nxt = ID;
+    //         ID:
+    //         if (isWWD) begin
+    //             state_nxt = WWD;
+    //         end else begin
+    //             state_nxt = EX;
+    //         end
+    //         EX: 
+    //             if (!ir_ack_i) begin  //wwd 컨티뉴
+    //                 state_nxt = WWD;
+    //             end
+    //             else begin
+    //                 state_nxt = IF;
+    //             end
+    //         default: state_nxt = IF;
+    //     endcase
+    // end
 
 endmodule

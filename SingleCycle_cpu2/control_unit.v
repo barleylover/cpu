@@ -100,8 +100,8 @@ module ControlUnit (
                     `FUNC_TCP : begin ALUOp = `ALU_OP_ADD; isTCP=1; end
                     `FUNC_SHL : ALUOp = `ALU_OP_ALS;
                     `FUNC_SHR : ALUOp = `ALU_OP_ARS;
-                    `FUNC_JPR : begin ALUOp = `ALU_OP_ID; RegWrite = 0; isJPR=0; end
-                    `FUNC_JRL : begin ALUOp = `ALU_OP_ID; isJRL=0; end
+                    `FUNC_JPR : begin ALUOp = `ALU_OP_ID; RegWrite = 0; isJPR=1; end
+                    `FUNC_JRL : begin ALUOp = `ALU_OP_ID; isJRL=1; end
                     `FUNC_RWD : ALUOp = `ALU_OP_ID;
                     `FUNC_WWD : begin ALUOp = `ALU_OP_ID; RegWrite = 0; isWWD = 1; end
                 endcase
