@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd \\\"c:/Users/SSAFY/Desktop/cpu/SingleCycle_cpu2\\\" && ls -la && for f in cpu.v control_unit.v alu.v register_file.v; do echo \\\"===== $f\\\"; cat -n $f 2>/dev/null; done; for f in *.v; do cmp...",
+  "error": "Exit code 2\ntotal 68\ndrwxr-xr-x 1 SSAFY 197121     0 Oct 27 10:03 .\ndrwxr-xr-x 1 SSAFY 197121     0 Oct 27 10:03 ..\ndrwxr-xr-x 1 SSAFY 197121     0 Oct 15 13:55 .omc\n-rw-r--r-- 1 SSAFY 197121  1731 Oct 21 14:54 alu.v\n-rw-r--r-- 1 SSAFY 197121  3389 Oct 27 10:01 control_unit.v\n-rw-r--r-- 1 SSAFY 197121 10255 Oct 27 10:19 cpu.v\n-rw-r--r-- 1 SSAFY 197121 23517 Oct 21 15:58 cpu_tb.v\n-rw-r--r-- 1 SSAFY 197121  1317 Oct 21 15:58 data_memory.v\n-rw-r--r-- 1 SSAFY 197121   690 Oct 21 15:58 instruction_me...",
+  "timestamp": "2026-10-27T01:19:52.698Z",
+  "retry_count": 1
+}

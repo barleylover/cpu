@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1792462277575,
+  "lastScanned": 1793058260919,
   "projectRoot": "c:\\Users\\SSAFY\\Desktop\\cpu",
   "techStack": {
     "languages": [],
@@ -36,7 +36,7 @@
       "path": "ALU",
       "purpose": null,
       "fileCount": 2,
-      "lastAccessed": 1792462277542,
+      "lastAccessed": 1793058260876,
       "keyFiles": [
         "ALU.xpr",
         "ALU_Template.v"
@@ -45,21 +45,21 @@
     "SingleCycle_cpu": {
       "path": "SingleCycle_cpu",
       "purpose": null,
-      "fileCount": 5,
-      "lastAccessed": 1792462277542,
+      "fileCount": 9,
+      "lastAccessed": 1793058260877,
       "keyFiles": [
         "alu.v",
         "control_unit.v",
         "cpu.v",
-        "opcodes.v",
-        "register_file.v"
+        "cpu1.v",
+        "cpu_tb.v"
       ]
     },
     "VendingMachine": {
       "path": "VendingMachine",
       "purpose": null,
       "fileCount": 5,
-      "lastAccessed": 1792462277543,
+      "lastAccessed": 1793058260878,
       "keyFiles": [
         "VendingMachine.xpr",
         "VendingMachine_template.v",

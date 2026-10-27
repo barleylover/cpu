@@ -3,7 +3,7 @@
 module CPU_W16_R4 #(
     parameter WORD_SIZE = 16,
     parameter REG_BITS  = 2,
-    parameter MEM_SIZE = 256;
+    parameter MEM_SIZE = 256
 )
 (
     // Global Signals
@@ -19,13 +19,13 @@ module CPU_W16_R4 #(
     input   wire    [WORD_SIZE-1:0]     dmem_rdata_i,   // data read port
     output  wire    [WORD_SIZE-1:0]     dmem_wdata_o,   // data write port
     output  wire                        dmem_read_o,    // data read enable
-    output  wire                        dmem_write_o    // data write enable
+    output  wire                        dmem_write_o,    // data write enable
     
     // Interrupt Handler IF (for debugging purpose)
     input   wire                        ir_ack_i,       // triggered when the given interrupt is properly handled
     output  wire                        ir_req_o,       // triggered when the internal interrupt occurs
     input   wire    [WORD_SIZE-1:0]     ir_msg_i,       // message transfer from interrupt handler (for RWD, not used)
-    output  wire    [WORD_SIZE-1:0]     ir_msg_o,       // message transfer to interrupt handler
+    output  wire    [WORD_SIZE-1:0]     ir_msg_o       // message transfer to interrupt handler
 );
 
 /********************************************************
@@ -108,6 +108,7 @@ module CPU_W16_R4 #(
     wire    isLHI, 
             isORI, 
             isWWD, 
+            isTCP,
             bcond;
     wire [3:0] ALUOp;
     wire    RegDst, 
@@ -184,7 +185,12 @@ module CPU_W16_R4 #(
 
     // Part3: ALU Datapath
     always @(*) begin
-        alu_operand1 = rf_rd_data1;
+        if (isLHI) begin
+            alu_operand1 = 0;
+        end else begin
+            alu_operand1 = rf_rd_data1;
+        end
+
         if (ALUSrc) begin
             if (isLHI) begin
                 alu_operand2 = {imem_rdata_i[7:0], 8'b0};
@@ -193,6 +199,8 @@ module CPU_W16_R4 #(
             end else begin
                 alu_operand2 = {{8{imem_rdata_i[7]}}, imem_rdata_i[7:0]};
             end
+        end else if (isTCP) begin
+            alu_operand2 = 16'b1;
         end else begin
             alu_operand2 = rf_rd_data2;
         end
@@ -207,10 +215,9 @@ module CPU_W16_R4 #(
 
 
     // Part4: Control Unit Datapath
-    always @(*) begin
-        ir_req = isWWD & ~ir_ack;
-        ir_msg = rf_rd_data1;
-    end
+    reg ir_req;
+    reg [WORD_SIZE-1:0] ir_msg, inst;
+
     // Control Unit 
     ControlUnit ctrl_unit (
     // FILL OUT THE INTERFACE FOR THE CONTROL UNIT
@@ -218,18 +225,21 @@ module CPU_W16_R4 #(
         .rs_data(rf_rd_data1), .rt_data(rf_rd_data2),
         .RegDst(RegDst), .Jump(Jump), .Branch(Branch), .MemRead(MemRead), .MemtoReg(MemtoReg), .MemWrite(MemWrite), .ALUSrc(ALUSrc), .RegWrite(RegWrite),
         .ALUOp(ALUOp),
-        .isORI(isORI), .isLHI(isLHI), .isWWD(isWWD), .bcond(bcond));
+        .isORI(isORI), .isLHI(isLHI), .isWWD(isWWD), .isTCP(isTCP), .bcond(bcond));
     
     assign dmem_addr_o = alu_result;
     assign dmem_wdata_o = rf_rd_data2;
     assign dmem_read_o = MemRead;
     assign dmem_write_o = MemWrite;
-
+    
     // Part5: Program Counter Datapath
     always @(*) begin
         inst = imem_raddr + 1;
-        if (isWWD && !ir_ack) begin
+        ir_req = 0;
+        if (isWWD && !ir_ack_i) begin
             imem_raddr_nxt = imem_raddr;
+            ir_req = 1;
+            ir_msg = rf_rd_data1;
         end else if (Branch && bcond) begin
             imem_raddr_nxt = inst + {{8{imem_rdata_i[7]}}, imem_rdata_i[7:0]};
         end else if (Jump) begin
@@ -237,7 +247,9 @@ module CPU_W16_R4 #(
         end else begin imem_raddr_nxt = inst; end
     end
     
-    
+    assign ir_req_o = ir_req;
+    assign ir_msg_o = ir_msg;
+
     // Part6: Program Counter & Interrupt Handler with FSM
     // - program counter, data memory, interrupt handler is dependant with interrupt state
     // - interrupt occured, program counter update is 
@@ -273,19 +285,12 @@ module CPU_W16_R4 #(
                 state_nxt = EX;
             end
             EX: 
-                if (MemWrite | MemRead) begin
-                    state_nxt = MEM;
-                end else begin
+                if (!ir_ack_i) begin  //wwd 컨티뉴
+                    state_nxt = WWD;
+                end
+                else begin
                     state_nxt = IF;
                 end
-            MEM: state_nxt = IF;
-            WWD:
-            if (!ir_ack) begin  //wwd 컨티뉴
-                state_nxt = WWD;
-            end
-            else begin
-                state_nxt = IF;
-            end
             default: state_nxt = IF;
         endcase
     end

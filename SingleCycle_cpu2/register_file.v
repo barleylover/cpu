@@ -20,7 +20,7 @@ module RegisterFile #(
     reg [WORD_SIZE*(1<<REG_BITS)-1:0] regist, reg_nxt;
     reg [WORD_SIZE-1:0] rd_data1_o, rd_data2_o;
 
-    always @(negedge clk) begin
+    always @(posedge clk or negedge reset_n) begin
         if (!reset_n) begin
             regist <= 0;
         end

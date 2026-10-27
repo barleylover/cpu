@@ -3,11 +3,13 @@
 module ControlUnit (
     // DEFINE THE INTERFACE OF THE CONTROL UNIT HERE
     input [15:0] rd_inst,
-    input [1:0] rs_data, rt_data,
+    input [15:0] rs_data, rt_data,
     
     output reg RegDst, Jump, Branch, MemRead, MemtoReg, MemWrite, ALUSrc, RegWrite,
     output reg [3:0] ALUOp,
-    output reg isWWD, isORI, isLHI, bcond
+    output reg isWWD, isORI, isLHI, isTCP, 
+    output reg isJAL, isJPR, isJRL,
+    output reg bcond
 );
 
 // ADD YOUR CODE HERE
@@ -28,6 +30,10 @@ module ControlUnit (
         isWWD = 0;
         isLHI = 0;
         isORI = 0;
+        isTCP = 0;
+        isJAL = 0;
+        isJPR = 0;
+        isJRL = 0;
         bcond = 0;
         case(opcode)
             `OPCODE_ADI : begin
@@ -42,7 +48,7 @@ module ControlUnit (
                 isORI = 1;
             end
             `OPCODE_LHI :   begin
-                ALUOp = `ALU_OP_ID;
+                ALUOp = `ALU_OP_ADD;
                 ALUSrc = 1;
                 RegWrite = 1;
                 isLHI = 1;
@@ -67,7 +73,7 @@ module ControlUnit (
             end
             `OPCODE_BGZ :   begin
                 Branch = 1;
-                bcond = (rs_data>0)? 1:0;
+                bcond = ($signed(rs_data)>0)? 1:0;
             end
             `OPCODE_BLZ :   begin
                 Branch = 1;
@@ -78,6 +84,8 @@ module ControlUnit (
             end
             `OPCODE_JAL :   begin
                 Jump = 1;
+                isJAL = 1;
+                RegWrite = 1;
             end
             `OPCODE_RTYPE : begin
                 RegDst = 1;
@@ -89,11 +97,11 @@ module ControlUnit (
                     `FUNC_AND : ALUOp = `ALU_OP_AND;
                     `FUNC_ORR : ALUOp = `ALU_OP_OR;
                     `FUNC_NOT : ALUOp = `ALU_OP_NOT;
-                    `FUNC_TCP : ALUOp = `ALU_OP_NOT;
+                    `FUNC_TCP : begin ALUOp = `ALU_OP_ADD; isTCP=1; end
                     `FUNC_SHL : ALUOp = `ALU_OP_ALS;
                     `FUNC_SHR : ALUOp = `ALU_OP_ARS;
-                    `FUNC_JPR : begin ALUOp = `ALU_OP_ID; RegWrite = 0; end
-                    `FUNC_JRL : ALUOp = `ALU_OP_ID;
+                    `FUNC_JPR : begin ALUOp = `ALU_OP_ID; RegWrite = 0; isJPR=0; end
+                    `FUNC_JRL : begin ALUOp = `ALU_OP_ID; isJRL=0; end
                     `FUNC_RWD : ALUOp = `ALU_OP_ID;
                     `FUNC_WWD : begin ALUOp = `ALU_OP_ID; RegWrite = 0; isWWD = 1; end
                 endcase
