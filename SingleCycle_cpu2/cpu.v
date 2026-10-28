@@ -247,10 +247,10 @@ module CPU_W16_R4 #(
     always @(*) begin
         inst = imem_raddr + 1;
         ir_req = 0;
-        if (isWWD && !ir_ack_i) begin
+        if (isWWD && !ir_ack_i) begin   //WWD state
             imem_raddr_nxt = imem_raddr;
             ir_req = 1;
-        end else if (Branch && bcond) begin
+        end else if (Branch && bcond) begin     // 
             imem_raddr_nxt = inst + {{8{imem_rdata_i[7]}}, imem_rdata_i[7:0]};
         end else if (Jump) begin
             imem_raddr_nxt = {imem_raddr[15:12], imem_rdata_i[11:0]};

@@ -1,7 +1,0 @@
-{
-  "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"cd \\\"c:/Users/SSAFY/Desktop/cpu/SingleCycle_cpu\\\" && cat -n cpu1.v | sed -n 80,208p; echo =====TB; grep -n \\\"CPU_W16_R4\\\\|ir_\\\\|DUT\\\\|\\\\.clk\\\\|initial\\\\|always\\\\|inst_mem\\\\[\\\" cpu_tb.v | h...",
-  "error": "Exit code 1\n    80\t   - Control Unit generates control signal transferred to the hardware components \n    81\t     e.g. ALU, Register File, Instruction Memory\n    82\t\n    83\t Note\n    84\t   - We highly recommend you to implement the Control Unit as a separate module\n    85\t   - We provided \"control_unit.v\" to implement the Control Unit\n    86\t   - You can define the interface of the Control Unit (it may be different to the MIPS micro-architecture)\n    87\t */\n    88\t\n    89\t// SECTION: Instruction...",
-  "timestamp": "2026-10-26T23:44:53.962Z",
-  "retry_count": 1
-}
