@@ -126,15 +126,8 @@ module CPU_W16_R4 #(
 
 
     // Program Counter IF
-    localparam  IF=0, 
-                ID=1, 
-                EX=2, 
-                WB=3, 
-                MEM=4, 
-                WWD=5;
-    reg [3:0]   state, 
-                state_nxt;
-
+    reg ir_req;
+    reg [WORD_SIZE-1:0] inst;
 
 
 /********************************************************
@@ -233,8 +226,6 @@ module CPU_W16_R4 #(
 
 
     // Part4: Control Unit Datapath
-    reg ir_req;
-    reg [WORD_SIZE-1:0] inst;
 
     // Control Unit 
     ControlUnit ctrl_unit (
@@ -286,34 +277,5 @@ module CPU_W16_R4 #(
     //          - 16'h2001 = 16'b0010_0000_0000_0001
     //      - imem_rdata = 16'h908b; JMP 0x8b(139)    -> pc='d139
     //          - 16'h908b = 16'b1001_0000_1000_1011
-
-    // always @(posedge clk or negedge reset_n) begin
-    //     if(!reset_n) begin
-    //         state <= IF;
-    //     end else begin
-    //         state <= state_nxt;
-    //     end
-    // end
-
-    // always @(*) begin
-    //     state_nxt = state;
-    //     case(state)
-    //         IF: state_nxt = ID;
-    //         ID:
-    //         if (isWWD) begin
-    //             state_nxt = WWD;
-    //         end else begin
-    //             state_nxt = EX;
-    //         end
-    //         EX: 
-    //             if (!ir_ack_i) begin  //wwd 컨티뉴
-    //                 state_nxt = WWD;
-    //             end
-    //             else begin
-    //                 state_nxt = IF;
-    //             end
-    //         default: state_nxt = IF;
-    //     endcase
-    // end
 
 endmodule
