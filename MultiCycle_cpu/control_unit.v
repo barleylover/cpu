@@ -4,6 +4,7 @@ module ControlUnit (
     // DEFINE THE INTERFACE OF THE CONTROL UNIT HERE
     input wire  clk, 
     input wire  reset_n,
+    input wire  ir_ack_i,
     input reg   [15:0] rd_inst,
     input reg   [15:0] rs_data, rt_data,
     
@@ -34,7 +35,6 @@ module ControlUnit (
     always @(*) begin
         funct = rd_inst[5:0];
         opcode = rd_inst[15:12];
-        PCWriteCond=0;
         PCSource=0;
         PCWrite=0;
         MemRead=0;
@@ -45,7 +45,7 @@ module ControlUnit (
         IRWrite=0;
         IorD=0;
         ALUSrcA=1; // branch일 때 0
-        ALUSrcB=0; // R-type: rd <- rs, rt / pc 업데이트 : pc <- pc+1 <-> branch, jump일때 sign-extended(inst[7:0])
+        ALUSrcB=1; // R-type: rd <- rs, rt / pc 업데이트 : pc <- pc+1 <-> branch, jump일때 sign-extended(inst[7:0])
         ALUOp=0;    
         case(opcode)
             `OPCODE_ADI : begin
@@ -116,7 +116,8 @@ module ControlUnit (
             `OPCODE_RTYPE : begin
                 RegDst = 1;
                 MemtoReg = 0;  //alu 연산 결과 전달
-                RegWrite = 1; 
+                RegWrite = 1;
+                ALUSrcB = 0; 
                 case(funct)a
                     `FUNC_ADD : ALUOp = `ALU_OP_ADD;
                     `FUNC_SUB : ALUOp = `ALU_OP_SUB;
@@ -138,23 +139,34 @@ module ControlUnit (
 
         case (state)
             IF:
-                if (opcode==`OPCODE_WWD) begin
+                if (opcode==`OPCODE_RTYPE && funct==`FUNC_WWD) begin
                     state_nxt = WWD;
                 end else begin 
                     state_nxt = ID;
                 end
             ID: state_nxt = EX;
             EX: state_nxt = MEM;
-            MEM: 
-                if (opcode == `OPCODE_ST || opcode==) begin
-                    state_nxt = WB;
+            EX: 
+                if (opcode == `OPCODE_SWD || opcode==`OPCODE_LWD) begin
+                    state_nxt = MEM;
                 end else begin
                     ALUSrcB = 1;
-                    state_nxt = IF;
+                    state_nxt = WB;
                 end 
-            WB: begin ALUSrcB=1; state_nxt = IF; end
+            MEM:
+                if (opcode==`OPCODE_LWD) begin state_nxt = WB; end
+                else begin
+                    state_nxt = IF;
+                    ALUSrcB=1;
+                end
+            WB: 
+            begin
+                ALUSrcB = 1;
+                RegWrite = 1;
+                state_nxt = IF;
+            end
             WWD:
-                if (ir_ack==0) begin
+                if (ir_ack) begin
                     state_nxt = ID;
                 end else begin
                     state_nxt = WWD;
