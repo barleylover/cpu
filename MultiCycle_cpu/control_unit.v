@@ -10,8 +10,7 @@ module ControlUnit (
     
     output reg  PCWriteCond,
     output reg  PCWrite, IRWrite, IorD,
-    output reg  Branch, Jump,
-    output reg  isLHI, isORI, isJPR, isJRL, isJAL, isTCP, isWWD,
+    output reg  isLHI, isORI, isJRL, isJAL, isTCP, isWWD,
     output reg  [1:0] PCSource,
     output reg  MemRead, MemtoReg, MemWrite, RegWrite, RegDst,
     output reg  ALUSrcA, 
@@ -43,8 +42,7 @@ module ControlUnit (
         IRWrite=0;
         IorD=0;
         ALUSrcA=0; ALUSrcB=0; ALUOp=0;
-        Branch=0; Jump=0;
-        isLHI=0; isORI=0; isJAL=0; isJPR=0; isJRL=0; isTCP=0; isWWD=0;
+        isLHI=0; isORI=0; isJAL=0; isJRL=0; isTCP=0; isWWD=0;
         state_nxt = state;
         if (state==EX) begin
             case(opcode)
@@ -53,10 +51,10 @@ module ControlUnit (
                 `OPCODE_LHI : begin ALUOp = `ALU_OP_ADD; isLHI=1; ALUSrcA=1; ALUSrcB=2; end
                 `OPCODE_LWD : begin ALUSrcA=1; ALUSrcB=2; ALUOp=`ALU_OP_ADD; end
                 `OPCODE_SWD : begin ALUSrcA=1; ALUSrcB=2; ALUOp=`ALU_OP_ADD; end
-                `OPCODE_BNE : begin Branch=1; PCWriteCond=(rs_data==rt_data)? 0 : 1; ALUSrcA=0; ALUSrcB=2; end
-                `OPCODE_BEQ : begin Branch=1; PCWriteCond=(rs_data==rt_data)? 1 : 0; ALUSrcA=0; ALUSrcB=2;end
-                `OPCODE_BGZ : begin Branch=1; PCWriteCond=($signed(rs_data)>0)? 1:0; ALUSrcA=0; ALUSrcB=2;end
-                `OPCODE_BLZ : begin Branch=1; PCWriteCond = ($signed(rs_data)<0)? 1:0; ALUSrcA=0; ALUSrcB=2;end
+                `OPCODE_BNE : begin PCWriteCond=(rs_data==rt_data)? 0 : 1; ALUSrcA=0; ALUSrcB=2; end
+                `OPCODE_BEQ : begin PCWriteCond=(rs_data==rt_data)? 1 : 0; ALUSrcA=0; ALUSrcB=2;end
+                `OPCODE_BGZ : begin PCWriteCond=($signed(rs_data)>0)? 1:0; ALUSrcA=0; ALUSrcB=2;end
+                `OPCODE_BLZ : begin PCWriteCond=($signed(rs_data)<0)? 1:0; ALUSrcA=0; ALUSrcB=2;end
                 `OPCODE_RTYPE : begin
                     ALUSrcA = 1; ALUSrcB=0;
                     case(funct)
@@ -119,7 +117,7 @@ module ControlUnit (
             EX: 
                 if (opcode == `OPCODE_SWD || opcode==`OPCODE_LWD) begin
                     state_nxt = MEM;
-                end else if (Branch) begin
+                end else if (opcode==`OPCODE_BNE||opcode==`OPCODE_BEQ||opcode==`OPCODE_BGZ||opcode==`OPCODE_BLZ) begin
                     state_nxt = IF;
                 end else begin
                     state_nxt = WB;
@@ -137,7 +135,6 @@ module ControlUnit (
             end
             WB: 
             begin
-                ALUSrcB = 1;
                 RegWrite = 1;
                 RegDst = (opcode==`OPCODE_RTYPE);
                 state_nxt = IF;
