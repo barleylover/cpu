@@ -1,13 +1,13 @@
-module DataMemory #(
+module Memory #(
     parameter WORD_SIZE = 16,
     parameter MEM_SIZE  = 256
 )(
     input   wire                     clk,         
-    input   wire                     dmem_read_i,   
-    input   wire                     dmem_write_i,  
-    input   wire [WORD_SIZE-1:0]     dmem_addr_i,       
-    input   wire [WORD_SIZE-1:0]     dmem_wdata_i,  
-    output  wire [WORD_SIZE-1:0]     dmem_rdata_o   
+    input   wire                     mem_read_i,   
+    input   wire                     mem_write_i,  
+    input   wire [WORD_SIZE-1:0]     mem_addr_i,       
+    input   wire [WORD_SIZE-1:0]     mem_wdata_i,  
+    output  wire [WORD_SIZE-1:0]     mem_rdata_o   
 );
     
     // Data Memory (Read/Write)
@@ -25,22 +25,22 @@ module DataMemory #(
     end
 
     // Read Operation
-    reg [WORD_SIZE-1:0] dmem_rdata;
+    reg [WORD_SIZE-1:0] mem_rdata;
     always @(*) begin
-        if (dmem_read_i) begin
-            dmem_rdata = data_mem[dmem_addr_i];  
+        if (mem_read_i) begin
+            mem_rdata = data_mem[mem_addr_i];  
         end else begin
-            dmem_rdata = {WORD_SIZE{1'b0}}; // read disabled, return 0
+            mem_rdata = {WORD_SIZE{1'b0}}; // read disabled, return 0
         end
     end
 
     // Write Operation
     always @(posedge clk) begin
-        if (dmem_write_i) begin
-            data_mem[dmem_addr_i] = dmem_wdata_i;
+        if (mem_write_i) begin
+            data_mem[mem_addr_i] = mem_wdata_i;
         end
     end
     
-    assign dmem_rdata_o = dmem_rdata;
+    assign mem_rdata_o = mem_rdata;
 
 endmodule
