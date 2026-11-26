@@ -105,23 +105,11 @@ module CPU_W16_R4 #(
 
  
     // Control Unit IF    
-    wire    isLHI, 
-            isORI, 
-            isWWD, 
-            isTCP,
-            isJAL,
-            isJPR,
-            isJRL,
-            bcond;
-    wire [3:0] ALUOp;
-    wire    RegDst, 
-            Jump, 
-            Branch, 
-            MemRead, 
-            MemtoReg, 
-            MemWrite, 
-            ALUSrc, 
-            RegWrite;
+    reg     PCWriteCond, PCWrite, IRWrite, IorD;
+    reg     isLHI, isORI, isJRL, isJAL, isTCP, isWWD;
+    reg     [1:0] PCSource, ALUSrcB;
+    reg     MemRead, MemtoReg, MemWrite, RegWrite, RegDst;
+    reg     [3:0] ALUOp;
 
 
 
@@ -230,13 +218,13 @@ module CPU_W16_R4 #(
     // Control Unit 
     ControlUnit ctrl_unit (
     // FILL OUT THE INTERFACE FOR THE CONTROL UNIT
-        .rd_inst(imem_rdata_i),
+        .clk(clk), .reset_n(.reset_n),
+        .rd_inst(imem_rdata_i), .ir_ack_i(ir_ack_i),
         .rs_data(rf_rd_data1), .rt_data(rf_rd_data2),
-        .RegDst(RegDst), .Jump(Jump), .Branch(Branch), .MemRead(MemRead), .MemtoReg(MemtoReg), .MemWrite(MemWrite), .ALUSrc(ALUSrc), .RegWrite(RegWrite),
-        .ALUOp(ALUOp),
-        .isORI(isORI), .isLHI(isLHI), .isWWD(isWWD), .isTCP(isTCP), 
-        .isJAL(isJAL), .isJPR(isJPR), .isJRL(isJRL),
-        .bcond(bcond));
+        .PCWriteCond(PCWriteCond), .PCWrite(PCWrite), .IRWrite(IRWrite), .IorD(IorD),
+        .isLHI(isLHI), .isORI(isORI), .isJRL(isJRL), .isJAL(isJAL), .isTCP(isTCP), .isWWD(isWWD),
+        .PCSource(PCSource), .MemRead(MemRead), .MemtoReg(MemtoReg), .MemWrite(MemWrite), .RegWrite(RegWrite), .RegDst(RegDst),
+        .ALUSrcA(ALUSrcA), .ALUSrcB(ALUSrcB), .ALUOp(ALUOp));
     
     assign dmem_addr_o = alu_result;
     assign dmem_wdata_o = rf_rd_data2;
