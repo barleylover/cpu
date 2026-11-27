@@ -3,7 +3,14 @@
 module CPU_W16_R4 #(
     parameter WORD_SIZE = 16,
     parameter REG_BITS  = 2,
-    parameter MEM_SIZE = 256
+    parameter MEM_SIZE = 256,
+    parameter IF=0, 
+    parameter ID=1, 
+    parameter EX=2, 
+    parameter MEM=3, 
+    parameter WB=4, 
+    parameter WWD=5
+
 )
 (
     // Global Signals
@@ -11,15 +18,7 @@ module CPU_W16_R4 #(
     input   wire    reset_n,  // global asynchronous negative triggered reset 
 
     // Instruction Memory IF (Read-only)
-    input   wire    [WORD_SIZE-1:0]     imem_rdata_i,   // instruction read port
     output  wire    [WORD_SIZE-1:0]     imem_raddr_o,   // instruction read address
-
-    // Data Memory IF (Read/Write)
-    output  wire    [WORD_SIZE-1:0]     dmem_addr_o,    // data read address
-    input   wire    [WORD_SIZE-1:0]     dmem_rdata_i,   // data read port
-    output  wire    [WORD_SIZE-1:0]     dmem_wdata_o,   // data write port
-    output  wire                        dmem_read_o,    // data read enable
-    output  wire                        dmem_write_o,    // data write enable
     
     // Interrupt Handler IF (for debugging purpose)
     input   wire                        ir_ack_i,       // triggered when the given interrupt is properly handled
@@ -83,8 +82,9 @@ module CPU_W16_R4 #(
     - etc.
 ********************************************************/
     
-    // Instruction Decoder IF
-    reg [WORD_SIZE-1:0] imem_raddr, imem_raddr_nxt;
+    // Memory IF
+    reg [WORD_SIZE-1:0] mem_addr_i, mem_wdata_i;
+    wire [WORD_SIZE-1:0] mem_rdata_o;
 
     // Register File IF
     reg                  rf_wr_enable;  // Register File: write enable
@@ -100,24 +100,29 @@ module CPU_W16_R4 #(
     reg  [15:0] alu_operand1,  // ALU: first operand (or operand A) 
                 alu_operand2;  // ALU: second operand (or operand B)
     reg  [3 :0] alu_opcode;    // ALU: opcode (it may be different to the instruction's opcode)
-    wire [15:0] alu_result;    // ALU: output result
     wire        alu_overflow;  // ALU: overflow or carry output
+    wire  [15:0]      alu_result;
 
  
     // Control Unit IF    
-    reg     PCWriteCond, PCWrite, IRWrite, IorD;
-    reg     isLHI, isORI, isJRL, isJAL, isTCP, isWWD;
-    reg     [1:0] PCSource, ALUSrcB;
-    reg     MemRead, MemtoReg, MemWrite, RegWrite, RegDst;
-    reg     [3:0] ALUOp;
-
-
+    wire     PCWriteCond, PCWrite, IRWrite, IorD;
+    wire     isLHI, isORI, isJPR, isJRL, isJAL, isTCP, isWWD;
+    wire     Jump, Branch;
+    wire     ALUSrcA;
+    wire     [1:0] PCSource, ALUSrcB;
+    wire     MemRead, MemtoReg, MemWrite, RegWrite, RegDst;
+    wire     [3:0] ALUOp;
 
     // Program Counter IF
     reg ir_req;
     reg [WORD_SIZE-1:0] inst;
+    reg [15:0] instruction;
+    reg [15:0] memory_data;
+    reg [15:0] ALUOut;
+    reg [15:0] rf_dataA;
+    reg [15:0] rf_dataB;
 
-
+    reg [15:0] imem_raddr, imem_raddr_nxt;
 /********************************************************
     Reg Variable Declaration
 ********************************************************
@@ -136,11 +141,21 @@ module CPU_W16_R4 #(
 
 
     // Part1: Instruction Memory Datapath
+    Memory memory(
+        .clk(clk),
+        .mem_read_i(MemRead), .mem_write_i(MemWrite),
+        .mem_addr_i(mem_addr_i), .mem_wdata_i(mem_wdata_i), .mem_rdata_o(mem_rdata_o)
+    );
+
+    always @(*) begin
+        mem_addr_i = IorD ? ALUOut : imem_raddr;
+        mem_wdata_i = rf_dataB;
+    end
 
     always @(posedge clk or negedge reset_n) begin
         if (!reset_n) begin
             imem_raddr <= 16'b0;
-        end else begin 
+        end else if(PCWrite||PCWriteCond) begin 
             imem_raddr <= imem_raddr_nxt;
         end
     end
@@ -150,24 +165,24 @@ module CPU_W16_R4 #(
 
     // Part2: Register File Datapath
     always @(*) begin
-        rf_rd_reg1 = imem_rdata_i[11:10];
-        rf_rd_reg2 = imem_rdata_i[9:8];
-        
+        rf_rd_reg1 = instruction[11:10];
+        rf_rd_reg2 = instruction[9:8];
+        //write register
         if (isJAL || isJRL) begin
             rf_wr_reg = 2;
         end else if (RegDst) begin
-            rf_wr_reg = imem_rdata_i[7:6];    
+            rf_wr_reg = instruction[7:6];    
         end else begin
-            rf_wr_reg = imem_rdata_i[9:8];
+            rf_wr_reg = instruction[9:8];
         end
+        //write data
         if (MemtoReg) begin
-            rf_wr_data = dmem_rdata_i;
+            rf_wr_data = memory_data;
         end else if (isJAL || isJRL) begin
-            rf_wr_data = imem_raddr+1;
+            rf_wr_data = imem_raddr;
         end else begin
-            rf_wr_data = alu_result;
+            rf_wr_data = ALUOut;
         end
-        rf_wr_enable = RegWrite;
     end
     
     // Register File 
@@ -175,40 +190,44 @@ module CPU_W16_R4 #(
         .WORD_SIZE(WORD_SIZE), .REG_BITS(REG_BITS)
     ) rf_w16_r4 (
        .clk(clk), .reset_n(reset_n),
-       .wr_enable(rf_wr_enable),
+       .wr_enable(RegWrite),
       .rd_reg1(rf_rd_reg1), .rd_reg2(rf_rd_reg2), .wr_reg(rf_wr_reg),
       .rd_data1(rf_rd_data1), .rd_data2(rf_rd_data2), .wr_data(rf_wr_data)
     );
 
     // Part3: ALU Datapath
     always @(*) begin
-        if (isLHI) begin
-            alu_operand1 = 0;
-        end else if (isTCP) begin
-            alu_operand1 = ~rf_rd_data1;
-        end else begin
-            alu_operand1 = rf_rd_data1;
-        end
-
-        if (ALUSrc) begin
+        //alu_operand1
+        if (ALUSrcA) begin
             if (isLHI) begin
-                alu_operand2 = {imem_rdata_i[7:0], 8'b0};
-            end else if(isORI) begin
-                alu_operand2 = {8'b0, imem_rdata_i[7:0]};
+                alu_operand1 = 0;
+            end else if (isTCP) begin
+                alu_operand1 = ~rf_rd_data1;
             end else begin
-                alu_operand2 = {{8{imem_rdata_i[7]}}, imem_rdata_i[7:0]};
+                alu_operand1 = rf_rd_data1;
             end
-        end else if (isTCP) begin
-            alu_operand2 = 16'b1;
         end else begin
-            alu_operand2 = rf_rd_data2;
+            alu_operand1 = imem_raddr;
         end
-        alu_opcode = ALUOp;
+        //alu_operand2
+        if (ALUSrcB==0) begin
+            alu_operand2 = rf_rd_data2;
+        end else if(ALUSrcB==1) begin
+            alu_operand2 = 1;
+        end else if(ALUSrcB==2) begin
+            if (isLHI) begin
+                alu_operand2 = {instruction[7:0], 8'b0};
+            end else if(isORI) begin
+                alu_operand2 = {8'b0, instruction[7:0]};
+            end else begin
+                alu_operand2 = {{8{instruction[7]}}, instruction[7:0]};
+            end
+        end else alu_operand2=0;
     end
 
     // Arithmetic Logic Unit
     ALU alu_w16_m (
-        .A_i(alu_operand1), .B_i(alu_operand2), .OP_i(alu_opcode), .C_i(1'b0), 
+        .A_i(alu_operand1), .B_i(alu_operand2), .OP_i(ALUOp), .C_i(1'b0), 
         .F_o(alu_result), .C_o(alu_overflow)
     );
 
@@ -216,38 +235,71 @@ module CPU_W16_R4 #(
     // Part4: Control Unit Datapath
 
     // Control Unit 
-    ControlUnit ctrl_unit (
+    ControlUnit #(
+        .IF(IF), .ID(ID), .EX(EX), .MEM(MEM), .WB(WB), .WWD(WWD)
+    ) ctrl_unit (
     // FILL OUT THE INTERFACE FOR THE CONTROL UNIT
-        .clk(clk), .reset_n(.reset_n),
-        .rd_inst(imem_rdata_i), .ir_ack_i(ir_ack_i),
+        .clk(clk), .reset_n(reset_n),
+        .rd_inst(instruction), .ir_ack_i(ir_ack_i),
         .rs_data(rf_rd_data1), .rt_data(rf_rd_data2),
         .PCWriteCond(PCWriteCond), .PCWrite(PCWrite), .IRWrite(IRWrite), .IorD(IorD),
-        .isLHI(isLHI), .isORI(isORI), .isJRL(isJRL), .isJAL(isJAL), .isTCP(isTCP), .isWWD(isWWD),
+        .isLHI(isLHI), .isORI(isORI), .isJRL(isJRL), .isJAL(isJAL), .isTCP(isTCP), .isWWD(isWWD), .isJPR(isJPR),
+        .Branch(Branch), .Jump(Jump),
         .PCSource(PCSource), .MemRead(MemRead), .MemtoReg(MemtoReg), .MemWrite(MemWrite), .RegWrite(RegWrite), .RegDst(RegDst),
-        .ALUSrcA(ALUSrcA), .ALUSrcB(ALUSrcB), .ALUOp(ALUOp));
+        .ALUSrcA(ALUSrcA), .ALUSrcB(ALUSrcB), .ALUOp(ALUOp)
+        );
     
-    assign dmem_addr_o = alu_result;
-    assign dmem_wdata_o = rf_rd_data2;
-    assign dmem_read_o = MemRead;
-    assign dmem_write_o = MemWrite;
-    
+    // assign dmem_addr_o = alu_result;
+    // assign dmem_wdata_o = rf_rd_data2;
+    // assign dmem_read_o = MemRead;
+    // assign dmem_write_o = MemWrite;
+
     // Part5: Program Counter Datapath
+    always @(posedge clk or negedge reset_n) begin
+        if (!reset_n) begin
+            instruction <= 16'b0;
+            memory_data <= 16'b0;
+            ALUOut <= 16'b0;
+            rf_dataA <= 16'b0;
+            rf_dataB <= 16'b0;
+        end else begin
+            if (IRWrite)  instruction <= mem_rdata_o;
+            rf_dataA <= rf_rd_data1;
+            rf_dataB <= rf_rd_data2;
+            ALUOut <= alu_result;
+            memory_data <= mem_rdata_o;
+        end
+
+    end
+
+    
+    // always @(*) begin
+    //     if (PCWrite) begin
+    //     inst = instruction + 1;
+    //     ir_req = 0;
+    //     if (isWWD && !ir_ack_i) begin   //WWD state
+    //         imem_raddr_nxt = instruction;
+    //         ir_req = 1;
+    //     end else if (Branch && PCWriteCond) begin     // 
+    //         imem_raddr_nxt = inst + {{8{instruction[7]}}, instruction[7:0]};
+    //     end else if (Jump) begin
+    //         imem_raddr_nxt = {instruction[15:12], instruction[11:0]};
+    //     end else if (isJPR || isJRL) begin
+    //         imem_raddr_nxt = rf_rd_data1;
+    //     end else begin imem_raddr_nxt = inst; end
+    //     end
+    // end
+
     always @(*) begin
-        inst = imem_raddr + 1;
-        ir_req = 0;
-        if (isWWD && !ir_ack_i) begin   //WWD state
-            imem_raddr_nxt = imem_raddr;
-            ir_req = 1;
-        end else if (Branch && bcond) begin     // 
-            imem_raddr_nxt = inst + {{8{imem_rdata_i[7]}}, imem_rdata_i[7:0]};
-        end else if (Jump) begin
-            imem_raddr_nxt = {imem_raddr[15:12], imem_rdata_i[11:0]};
-        end else if (isJPR || isJRL) begin
-            imem_raddr_nxt = rf_rd_data1;
-        end else begin imem_raddr_nxt = inst; end
+        case (PCSource)
+            0: imem_raddr_nxt = alu_result;
+            1: imem_raddr_nxt = ALUOut;
+            2: imem_raddr_nxt = {imem_raddr[15:12], instruction[11:0]};
+            3: imem_raddr_nxt = rf_rd_data1;
+        endcase
     end
     
-    assign ir_req_o = ir_req;
+    assign ir_req_o = isWWD;
     assign ir_msg_o = rf_rd_data1;
 
     // Part6: Program Counter & Interrupt Handler with FSM

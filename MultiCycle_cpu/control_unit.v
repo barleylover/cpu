@@ -1,6 +1,13 @@
 `include "opcodes.v"
 
-module ControlUnit (
+module ControlUnit #(
+    parameter IF=0, 
+    parameter ID=1, 
+    parameter EX=2, 
+    parameter MEM=3, 
+    parameter WB=4, 
+    parameter WWD=5
+    )(
     // DEFINE THE INTERFACE OF THE CONTROL UNIT HERE
     input wire  clk, 
     input wire  reset_n,
@@ -10,7 +17,8 @@ module ControlUnit (
     
     output reg  PCWriteCond,
     output reg  PCWrite, IRWrite, IorD,
-    output reg  isLHI, isORI, isJRL, isJAL, isTCP, isWWD,
+    output reg  isLHI, isORI, isJRL, isJAL, isTCP, isWWD, isJPR,
+    output reg  Branch, Jump,
     output reg  [1:0] PCSource,
     output reg  MemRead, MemtoReg, MemWrite, RegWrite, RegDst,
     output reg  ALUSrcA, 
@@ -19,7 +27,6 @@ module ControlUnit (
 );
 
 // ADD YOUR CODE HERE    
-    localparam IF=0, ID=1, EX=2, MEM=3, WB=4, WWD=5;
     reg [3:0] state, state_nxt;
     always @(posedge clk or negedge reset_n) begin
         if (!reset_n) begin
@@ -42,7 +49,8 @@ module ControlUnit (
         IRWrite=0;
         IorD=0;
         ALUSrcA=0; ALUSrcB=0; ALUOp=0;
-        isLHI=0; isORI=0; isJAL=0; isJRL=0; isTCP=0; isWWD=0;
+        isLHI=0; isORI=0; isJAL=0; isJRL=0; isTCP=0; isWWD=0; isJPR=0;
+        Jump=0; Branch=0;
         state_nxt = state;
         if (state==EX) begin
             case(opcode)
@@ -51,10 +59,11 @@ module ControlUnit (
                 `OPCODE_LHI : begin ALUOp = `ALU_OP_ADD; isLHI=1; ALUSrcA=1; ALUSrcB=2; end
                 `OPCODE_LWD : begin ALUSrcA=1; ALUSrcB=2; ALUOp=`ALU_OP_ADD; end
                 `OPCODE_SWD : begin ALUSrcA=1; ALUSrcB=2; ALUOp=`ALU_OP_ADD; end
-                `OPCODE_BNE : begin PCWriteCond=(rs_data==rt_data)? 0 : 1; ALUSrcA=0; ALUSrcB=2; end
-                `OPCODE_BEQ : begin PCWriteCond=(rs_data==rt_data)? 1 : 0; ALUSrcA=0; ALUSrcB=2;end
-                `OPCODE_BGZ : begin PCWriteCond=($signed(rs_data)>0)? 1:0; ALUSrcA=0; ALUSrcB=2;end
-                `OPCODE_BLZ : begin PCWriteCond=($signed(rs_data)<0)? 1:0; ALUSrcA=0; ALUSrcB=2;end
+                `OPCODE_BNE : begin Branch=1; PCWriteCond=(rs_data==rt_data)? 0 : 1; ALUSrcA=0; ALUSrcB=2; end
+                `OPCODE_BEQ : begin Branch=1; PCWriteCond=(rs_data==rt_data)? 1 : 0; ALUSrcA=0; ALUSrcB=2;end
+                `OPCODE_BGZ : begin Branch=1; PCWriteCond=($signed(rs_data)>0)? 1:0; ALUSrcA=0; ALUSrcB=2;end
+                `OPCODE_BLZ : begin Branch=1; PCWriteCond=($signed(rs_data)<0)? 1:0; ALUSrcA=0; ALUSrcB=2;end
+
                 `OPCODE_RTYPE : begin
                     ALUSrcA = 1; ALUSrcB=0;
                     case(funct)
@@ -89,6 +98,7 @@ module ControlUnit (
                         PCSource = 3;
                         PCWrite=1;
                         state_nxt = IF;
+                        isJPR=1;
                     end else if(funct==`FUNC_JRL) begin
                         PCSource = 3;
                         PCWrite=1;
@@ -102,6 +112,7 @@ module ControlUnit (
                     state_nxt=IF;
                     PCWrite=1;
                     PCSource=2; 
+                    Jump = 1;
                 end
                 `OPCODE_JAL:begin
                     state_nxt=IF;
@@ -109,6 +120,7 @@ module ControlUnit (
                     RegWrite=1;
                     PCSource=2;
                     isJAL=1;
+                    Jump = 1;
                 end
                 default: state_nxt=EX;
 
